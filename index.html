@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockWise - Stock Market Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">📈 Stock<span>Wise</span></div>
+
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search stock or symbol (e.g. TCS)" autocomplete="off" aria-label="Search stocks" />
+      <ul id="searchResults" class="search-results" hidden></ul>
+    </div>
+
+    <div class="header-right">
+      <span id="marketStatus" class="market-status">Checking...</span>
+      <button id="themeToggle" class="icon-btn" aria-label="Toggle dark and light mode">🌙</button>
+            <a class="nav-link" href="portfolio.html">Portfolio</a>
+
+      <div class="bell-wrap">
+        <button id="bellBtn" class="icon-btn" aria-label="Notifications">
+          🔔<span id="bellCount" class="bell-count" hidden>0</span>
+        </button>
+        <div id="bellPanel" class="bell-panel" hidden>
+          <button id="enablePush" class="btn" hidden>Enable browser alerts</button>
+          <div class="bell-head">
+            <b>Notifications</b>
+            <span>
+              <button id="markRead" class="link-btn">Mark all read</button>
+              <button id="clearAll" class="link-btn">Clear</button>
+            </span>
+          </div>
+          <ul id="bellList"></ul>
+        </div>
+      </div>
+      <div id="toastBox" class="toast-box"></div>
+    </div>
+  </header>
+
+  <!-- Ticker bar -->
+  <div class="ticker">
+    <div id="tickerTrack" class="ticker-track"></div>
+  </div>
+
+  <main class="container">
+
+    <!-- Index cards -->
+    <section>
+      <h2>Market Indices</h2>
+      <div id="indicesGrid" class="indices-grid"></div>
+    </section>
+
+    <!-- Tables -->
+    <section class="tables-grid">
+      <div class="card">
+        <h2>Top Gainers</h2>
+        <table>
+          <thead><tr><th>Stock</th><th>Price</th><th>Change</th></tr></thead>
+          <tbody id="gainersBody"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Top Losers</h2>
+        <table>
+          <thead><tr><th>Stock</th><th>Price</th><th>Change</th></tr></thead>
+          <tbody id="losersBody"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Most Active</h2>
+        <table>
+          <thead><tr><th>Stock</th><th>Price</th><th>Volume</th></tr></thead>
+          <tbody id="activeBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+        <!-- Watchlist -->
+    <section class="card watchlist">
+      <h2>My Watchlist</h2>
+      <table id="watchlistTable">
+        <thead><tr><th>Stock</th><th>Price</th><th>Change</th><th></th></tr></thead>
+        <tbody id="watchlistBody"></tbody>
+      </table>
+      <p id="watchlistEmpty" class="empty" hidden>
+        Your watchlist is empty. Open any stock and tap "Add to Watchlist".
+      </p>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    Data may be delayed. Not financial advice.
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="alerts.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

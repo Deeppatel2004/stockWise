@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockWise - Portfolio</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a class="logo" href="index.html">📈 Stock<span>Wise</span></a>
+    <div class="header-right">
+      <a class="nav-link" href="index.html">Dashboard</a>
+
+      <div class="bell-wrap">
+        <button id="bellBtn" class="icon-btn" aria-label="Notifications">
+          🔔<span id="bellCount" class="bell-count" hidden>0</span>
+        </button>
+        <div id="bellPanel" class="bell-panel" hidden>
+          <button id="enablePush" class="btn" hidden>Enable browser alerts</button>
+          <div class="bell-head">
+            <b>Notifications</b>
+            <span>
+              <button id="markRead" class="link-btn">Mark all read</button>
+              <button id="clearAll" class="link-btn">Clear</button>
+            </span>
+          </div>
+          <ul id="bellList"></ul>
+        </div>
+      </div>
+      <div id="toastBox" class="toast-box"></div>
+
+      <button id="themeToggle" class="icon-btn" aria-label="Toggle dark and light mode">🌙</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <h2>My Portfolio</h2>
+
+    <div class="stats-grid">
+      <div class="stat"><span>Invested</span><b id="sumInvested">₹0.00</b></div>
+      <div class="stat"><span>Current Value</span><b id="sumCurrent">₹0.00</b></div>
+      <div class="stat"><span>Total P/L</span><b id="sumPL">₹0.00</b></div>
+      <div class="stat"><span>Return</span><b id="sumReturn">0.00%</b></div>
+    </div>
+
+    <div class="card">
+      <h2>Add Holding</h2>
+      <form id="holdingForm" class="inline-form">
+        <select id="hSymbol" aria-label="Stock"></select>
+        <input type="number" id="hPrice" step="0.01" min="0.01" placeholder="Buy price (₹)" required />
+        <input type="number" id="hQty" step="1" min="1" placeholder="Quantity" required />
+        <button class="btn" type="submit">Add</button>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Holdings</h2>
+      <div class="table-scroll">
+        <table id="holdingsTable">
+          <thead>
+            <tr>
+              <th>Stock</th><th>Qty</th><th>Buy Price</th><th>LTP</th>
+              <th>Invested</th><th>Current</th><th>P/L</th><th>Return</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="holdingsBody"></tbody>
+        </table>
+      </div>
+      <p id="holdingsEmpty" class="empty" hidden>No holdings yet. Add your first one above.</p>
+    </div>
+  </main>
+
+  <footer class="footer">Data may be delayed. Not financial advice.</footer>
+
+  <script src="data.js"></script>
+  <script src="alerts.js"></script>
+  <script src="portfolio.js"></script>
+</body>
+</html>
