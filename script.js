@@ -164,3 +164,4 @@ window.addEventListener("pricetick", () => {
   renderTables();
   renderWatchlist();
 });
+window.addEventListener("userdataloaded", renderWatchlist);

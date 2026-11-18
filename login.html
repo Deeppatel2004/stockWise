@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockWise - Login</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="auth-body">
+
+  <button id="themeToggle" class="icon-btn auth-theme" aria-label="Toggle dark and light mode">🌙</button>
+
+  <div class="card auth-card">
+    <div class="logo">📈 Stock<span>Wise</span></div>
+
+    <div class="tf-buttons" id="authTabs">
+      <button type="button" class="tf-btn active" data-mode="login">Login</button>
+      <button type="button" class="tf-btn" data-mode="register">Register</button>
+    </div>
+
+    <form id="authForm">
+      <input type="text" id="aName" placeholder="Full name" autocomplete="name" hidden />
+      <input type="email" id="aEmail" placeholder="Email" autocomplete="email" required />
+      <input type="password" id="aPassword" placeholder="Password (min 8 characters)" minlength="8" required />
+      <p id="authError" class="auth-error" hidden></p>
+      <button type="submit" id="authSubmit" class="btn active">Login</button>
+    </form>
+  </div>
+
+  <p class="footer">Data may be delayed. Not financial advice.</p>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>

@@ -143,6 +143,7 @@ function setupWatchlistButton() {
     refresh();
   });
 
+  window.addEventListener("userdataloaded", refresh);
   refresh();
 }
 
@@ -157,7 +158,7 @@ function renderAlertList() {
               ${a.condition === "above" ? "Above" : "Below"} ₹${fmtPrice(a.target)}
               ${a.triggered ? '<span class="badge-done">✓ Triggered</span>' : ""}
             </span>
-            <button class="link-btn" data-remove-alert="${a.id}">Remove</button>
+            <button class="link-btn" data-remove-alert="${a._id}">Remove</button>
           </li>`
         )
         .join("")
@@ -165,22 +166,31 @@ function renderAlertList() {
 }
 
 function setupAlerts() {
-  document.getElementById("alertForm").addEventListener("submit", (e) => {
+  document.getElementById("alertForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const form = e.target;
     const target = parseFloat(document.getElementById("alertPrice").value);
     if (!(target > 0)) return;
 
-    addAlert(stock.symbol, document.getElementById("alertCond").value, target);
-    e.target.reset();
-    checkAlerts(); // fire right away if the target is already met
-    renderAlertList();
+    try {
+      await addAlert(stock.symbol, document.getElementById("alertCond").value, target);
+      form.reset();
+      checkAlerts(); // fire right away if the target is already met
+      renderAlertList();
+    } catch (err) {
+      showToast("Could not set alert", err.message);
+    }
   });
 
-  document.getElementById("alertList").addEventListener("click", (e) => {
+  document.getElementById("alertList").addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-remove-alert]");
     if (!btn) return;
-    removeAlert(Number(btn.dataset.removeAlert));
-    renderAlertList();
+    try {
+      await removeAlert(btn.dataset.removeAlert);
+      renderAlertList();
+    } catch (err) {
+      showToast("Could not remove alert", err.message);
+    }
   });
 
   renderAlertList();
@@ -256,8 +266,9 @@ if (!stock) {
 } else {
   document.title = `${stock.symbol} - StockWise`;
   renderPage();
+  window.addEventListener("userdataloaded", renderAlertList);
   window.addEventListener("pricetick", () => {
     updateLivePrice();
-    renderAlertList(); // shows the "Triggered" badge as soon as an alert fires
+    renderAlertList();
   });
 }

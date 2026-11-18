@@ -1,15 +1,3 @@
-// ---------- Small storage helpers ----------
-function loadList(key) {
-  try {
-    return JSON.parse(localStorage.getItem(key)) || [];
-  } catch {
-    return [];
-  }
-}
-function saveList(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
 // ---------- Live price simulation (mock) ----------
 // Remember yesterday's close so % change can be recalculated on every tick
 stocks.forEach((s) => {
@@ -26,61 +14,42 @@ function tickPrices() {
 }
 setInterval(tickPrices, 5000);
 
-// ---------- Price alerts ----------
-function getAlerts() {
-  return loadList("alerts");
-}
-
-function addAlert(symbol, condition, target) {
-  const list = getAlerts();
-  list.push({ id: Date.now(), symbol, condition, target, triggered: false });
-  saveList("alerts", list);
-}
-
-function removeAlert(id) {
-  saveList("alerts", getAlerts().filter((a) => a.id !== id));
-}
-
+// ---------- Check price alerts ----------
 function checkAlerts() {
-  const alerts = getAlerts();
-  let changed = false;
-
-  alerts.forEach((a) => {
+  getAlerts().forEach((a) => {
     if (a.triggered) return; // each alert fires only once
+
     const s = stocks.find((x) => x.symbol === a.symbol);
     if (!s) return;
 
     const hit = a.condition === "above" ? s.price >= a.target : s.price <= a.target;
     if (hit) {
-      a.triggered = true;
-      changed = true;
+      a.triggered = true; // mark right away so it cannot fire twice
+      api("/alerts/" + a._id + "/trigger", "PUT").catch(() => {});
       pushNotification(
         `${a.symbol} price alert`,
         `${a.symbol} is now ₹${fmtPrice(s.price)} (${a.condition} your target ₹${fmtPrice(a.target)})`
       );
     }
   });
-
-  if (changed) saveList("alerts", alerts);
 }
 
 // ---------- Notifications ----------
-function getNotifications() {
-  return loadList("notifications");
-}
-
 function pushNotification(title, message) {
-  const list = getNotifications();
-  list.unshift({ title, message, time: new Date().toISOString(), read: false });
-  saveList("notifications", list.slice(0, 50)); // keep the latest 50
+  const item = { title, message, createdAt: new Date().toISOString(), read: false };
+  userData.notifications.unshift(item); // show instantly
 
   renderBell();
   showToast(title, message);
 
-  // Browser notification (only if the user allowed it)
   if ("Notification" in window && Notification.permission === "granted") {
     new Notification(title, { body: message });
   }
+
+  // save in the database in the background
+  api("/notifications", "POST", { title, message })
+    .then((saved) => Object.assign(item, saved))
+    .catch((err) => console.error(err));
 }
 
 function showToast(title, message) {
@@ -108,7 +77,7 @@ function renderBell() {
           (n) => `<li class="${n.read ? "" : "unread"}">
             <b>${n.title}</b>
             <span>${n.message}</span>
-            <small>${new Date(n.time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</small>
+            <small>${new Date(n.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</small>
           </li>`
         )
         .join("")
@@ -130,20 +99,20 @@ document.addEventListener("click", (e) => {
 });
 
 document.getElementById("markRead").addEventListener("click", () => {
-  saveList("notifications", getNotifications().map((n) => ({ ...n, read: true })));
+  userData.notifications.forEach((n) => (n.read = true));
   renderBell();
+  api("/notifications/read-all", "PUT").catch(() => {});
 });
 
 document.getElementById("clearAll").addEventListener("click", () => {
-  saveList("notifications", []);
+  userData.notifications = [];
   renderBell();
+  api("/notifications", "DELETE").catch(() => {});
 });
 
 document.getElementById("enablePush").addEventListener("click", () => {
   Notification.requestPermission().then(renderBell);
 });
 
-// Keep the bell in sync if another tab changes the data
-window.addEventListener("storage", renderBell);
-
+window.addEventListener("userdataloaded", renderBell);
 renderBell();

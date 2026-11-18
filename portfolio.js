@@ -3,42 +3,37 @@ symbolSelect.innerHTML = stocks
   .map((s) => `<option value="${s.symbol}">${s.symbol} - ${s.name}</option>`)
   .join("");
 
-function getHoldings() {
-  try {
-    return JSON.parse(localStorage.getItem("holdings")) || [];
-  } catch {
-    return [];
-  }
-}
-
-function saveHoldings(list) {
-  localStorage.setItem("holdings", JSON.stringify(list));
-}
-
 const money = (n) => "₹" + fmtPrice(n);
 const signedMoney = (n) => (n >= 0 ? "+" : "-") + "₹" + fmtPrice(Math.abs(n));
 
 // ---------- Add holding ----------
-document.getElementById("holdingForm").addEventListener("submit", (e) => {
+document.getElementById("holdingForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const form = e.target;
   const buyPrice = parseFloat(document.getElementById("hPrice").value);
   const qty = parseInt(document.getElementById("hQty").value, 10);
   if (!(buyPrice > 0) || !(qty > 0)) return;
 
-  const list = getHoldings();
-  list.push({ id: Date.now(), symbol: symbolSelect.value, buyPrice, qty });
-  saveHoldings(list);
-
-  e.target.reset();
-  renderPortfolio();
+  try {
+    await addHolding(symbolSelect.value, buyPrice, qty);
+    form.reset();
+    renderPortfolio();
+  } catch (err) {
+    showToast("Could not add holding", err.message);
+  }
 });
 
 // ---------- Remove holding ----------
-document.getElementById("holdingsBody").addEventListener("click", (e) => {
+document.getElementById("holdingsBody").addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-remove]");
   if (!btn) return;
-  saveHoldings(getHoldings().filter((h) => h.id !== Number(btn.dataset.remove)));
-  renderPortfolio();
+
+  try {
+    await removeHolding(btn.dataset.remove);
+    renderPortfolio();
+  } catch (err) {
+    showToast("Could not remove holding", err.message);
+  }
 });
 
 // ---------- Render ----------
@@ -87,11 +82,12 @@ function renderPortfolio() {
         <td>${fmtPrice(r.current)}</td>
         <td class="${dirClass(r.pl)}">${signedMoney(r.pl)}</td>
         <td class="${dirClass(r.ret)}">${sign(r.ret)}${r.ret.toFixed(2)}%</td>
-        <td><button class="link-btn" data-remove="${r.id}">Remove</button></td>
+        <td><button class="link-btn" data-remove="${r._id}">Remove</button></td>
       </tr>`
     )
     .join("");
 }
 
 window.addEventListener("pricetick", renderPortfolio);
+window.addEventListener("userdataloaded", renderPortfolio);
 renderPortfolio();

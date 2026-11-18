@@ -56,24 +56,6 @@ function mulberry32(a) {
   };
 }
 
-// ---------- Watchlist (saved in localStorage) ----------
-function getWatchlist() {
-  try {
-    return JSON.parse(localStorage.getItem("watchlist")) || [];
-  } catch {
-    return [];
-  }
-}
-
-function toggleWatchlist(symbol) {
-  const list = getWatchlist();
-  const i = list.indexOf(symbol);
-  if (i >= 0) list.splice(i, 1);
-  else list.push(symbol);
-  localStorage.setItem("watchlist", JSON.stringify(list));
-  return i < 0; // true = added, false = removed
-}
-
 // ---------- Dark / light theme ----------
 const root = document.documentElement;
 const themeBtn = document.getElementById("themeToggle");
