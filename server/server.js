@@ -3,15 +3,18 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
+const { startAlertJob } = require("./jobs/alertJob");
 
 const app = express();
 
 app.use(cors()); // open in development; restrict to your site's URL when you deploy
 app.use(express.json());
 
+app.get("/", (req, res) => res.send("StockWise API is running. Try /api/health"));
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/stocks", require("./routes/stocks"));
 app.use("/api/watchlist", require("./routes/watchlist"));
 app.use("/api/holdings", require("./routes/holdings"));
 app.use("/api/alerts", require("./routes/alerts"));
@@ -30,7 +33,10 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 connectDB()
-  .then(() => app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`)))
+  .then(() => {
+    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+    startAlertJob();
+  })
   .catch((err) => {
     console.error("Failed to start:", err.message);
     process.exit(1);

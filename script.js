@@ -159,8 +159,10 @@ renderTables();
 renderWatchlist();
 updateMarketStatus();
 setInterval(updateMarketStatus, 60 * 1000); // re-check every minute
+
 // ---------- Live updates ----------
 window.addEventListener("pricetick", () => {
+  renderIndices();
   renderTables();
   renderWatchlist();
 });

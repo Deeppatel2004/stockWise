@@ -1,6 +1,7 @@
-const express = require("express");
+﻿const express = require("express");
 const Alert = require("../models/Alert");
 const { protect } = require("../middleware/auth");
+const { runAlertCheck } = require("../jobs/alertJob");
 
 const router = express.Router();
 router.use(protect);
@@ -20,8 +21,10 @@ router.post("/", async (req, res) => {
   if (!symbol || !["above", "below"].includes(condition) || !(target > 0)) {
     return res.status(400).json({ message: "Valid symbol, condition and target are required" });
   }
+
   const alert = await Alert.create({ user: req.user._id, symbol, condition, target });
-  res.status(201).json(alert);
+  await runAlertCheck(); // fire right away if the target is already met
+  res.status(201).json(await Alert.findById(alert._id));
 });
 
 // PUT /api/alerts/:id/trigger  (marks an alert as fired)

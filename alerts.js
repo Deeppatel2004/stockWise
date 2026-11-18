@@ -1,57 +1,87 @@
-// ---------- Live price simulation (mock) ----------
-// Remember yesterday's close so % change can be recalculated on every tick
+// ---------- Live data from the server ----------
+const REFRESH_MS = 20000; // every 20 seconds
+
+// Yesterday's close (the stock page uses it; real values arrive from the server)
 stocks.forEach((s) => {
   s.prevClose = s.price / (1 + s.percent / 100);
 });
 
-function tickPrices() {
-  stocks.forEach((s) => {
-    s.price = +(s.price * (1 + (Math.random() - 0.5) * 0.006)).toFixed(2); // up to ±0.3%
-    s.percent = ((s.price - s.prevClose) / s.prevClose) * 100;
-  });
-  checkAlerts();
-  window.dispatchEvent(new Event("pricetick"));
-}
-setInterval(tickPrices, 5000);
+let seenIds = null; // ids of notifications already shown (set after the first data load)
 
-// ---------- Check price alerts ----------
-function checkAlerts() {
-  getAlerts().forEach((a) => {
-    if (a.triggered) return; // each alert fires only once
+async function refreshPrices() {
+  const data = await api("/stocks/quotes");
 
-    const s = stocks.find((x) => x.symbol === a.symbol);
+  data.stocks.forEach((q) => {
+    const s = stocks.find((x) => x.symbol === q.symbol);
     if (!s) return;
-
-    const hit = a.condition === "above" ? s.price >= a.target : s.price <= a.target;
-    if (hit) {
-      a.triggered = true; // mark right away so it cannot fire twice
-      api("/alerts/" + a._id + "/trigger", "PUT").catch(() => {});
-      pushNotification(
-        `${a.symbol} price alert`,
-        `${a.symbol} is now ₹${fmtPrice(s.price)} (${a.condition} your target ₹${fmtPrice(a.target)})`
-      );
-    }
+    s.price = q.price;
+    s.prevClose = q.prevClose;
+    s.percent = q.percent;
+    s.volume = q.volume;
   });
+
+  data.indices.forEach((q) => {
+    const i = indices.find((x) => x.name === q.name);
+    if (!i) return;
+    i.value = q.value;
+    i.change = q.change;
+    i.percent = q.percent;
+  });
+
+  const footer = document.querySelector(".footer");
+  if (footer) {
+    footer.textContent =
+      (data.source === "yahoo" ? "Prices from Yahoo Finance. " : "Simulated prices (live source unavailable). ") +
+      "Data may be delayed. Not financial advice.";
+  }
 }
 
-// ---------- Notifications ----------
-function pushNotification(title, message) {
-  const item = { title, message, createdAt: new Date().toISOString(), read: false };
-  userData.notifications.unshift(item); // show instantly
-
-  renderBell();
-  showToast(title, message);
-
+function browserNotify(title, message) {
   if ("Notification" in window && Notification.permission === "granted") {
     new Notification(title, { body: message });
   }
-
-  // save in the database in the background
-  api("/notifications", "POST", { title, message })
-    .then((saved) => Object.assign(item, saved))
-    .catch((err) => console.error(err));
 }
 
+async function syncAlertsAndNotifications() {
+  const [alerts, notifications] = await Promise.all([api("/alerts"), api("/notifications")]);
+  userData.alerts = alerts;
+
+  // Popup for notifications the server created since the last check
+  if (seenIds) {
+    notifications
+      .filter((n) => !seenIds.has(n._id))
+      .reverse()
+      .forEach((n) => {
+        showToast(n.title, n.message);
+        browserNotify(n.title, n.message);
+      });
+  }
+  seenIds = new Set(notifications.map((n) => n._id));
+
+  userData.notifications = notifications;
+  renderBell();
+}
+
+async function refreshLive() {
+  try {
+    await refreshPrices();
+    if (seenIds) await syncAlertsAndNotifications(); // only after the first data load
+  } catch (err) {
+    console.error(err.message);
+    return;
+  }
+  window.dispatchEvent(new Event("pricetick")); // pages redraw
+}
+
+if (getToken()) setInterval(refreshLive, REFRESH_MS);
+
+window.addEventListener("userdataloaded", () => {
+  if (!seenIds) seenIds = new Set(getNotifications().map((n) => n._id));
+  renderBell();
+  refreshLive();
+});
+
+// ---------- Toast popup ----------
 function showToast(title, message) {
   const box = document.getElementById("toastBox");
   if (!box) return;
@@ -114,5 +144,4 @@ document.getElementById("enablePush").addEventListener("click", () => {
   Notification.requestPermission().then(renderBell);
 });
 
-window.addEventListener("userdataloaded", renderBell);
 renderBell();

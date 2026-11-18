@@ -175,7 +175,7 @@ function setupAlerts() {
     try {
       await addAlert(stock.symbol, document.getElementById("alertCond").value, target);
       form.reset();
-      checkAlerts(); // fire right away if the target is already met
+      await refreshLive(); // the server checks the new alert right away
       renderAlertList();
     } catch (err) {
       showToast("Could not set alert", err.message);
