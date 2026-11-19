@@ -1,7 +1,7 @@
 // ---------- Live data from the server ----------
 const REFRESH_MS = 20000; // every 20 seconds
 
-// Yesterday's close (the stock page uses it; real values arrive from the server)
+// Yesterday's close for the built-in stocks (real values arrive from the server)
 stocks.forEach((s) => {
   s.prevClose = s.price / (1 + s.percent / 100);
 });
@@ -9,11 +9,21 @@ stocks.forEach((s) => {
 let seenIds = null; // ids of notifications already shown (set after the first data load)
 
 async function refreshPrices() {
-  const data = await api("/stocks/quotes");
+  // The built-in stocks always come back. Any other stock (watchlist, holdings, alerts,
+  // the open stock page) is requested by its symbol.
+  const wanted = new Set(stocks.filter((s) => s.extra).map((s) => s.symbol));
+  getWatchlist().forEach((sym) => wanted.add(sym));
+  getHoldings().forEach((h) => wanted.add(h.symbol));
+  getAlerts().forEach((a) => wanted.add(a.symbol));
+
+  const data = await api("/stocks/quotes?symbols=" + encodeURIComponent([...wanted].join(",")));
 
   data.stocks.forEach((q) => {
-    const s = stocks.find((x) => x.symbol === q.symbol);
-    if (!s) return;
+    let s = stocks.find((x) => x.symbol === q.symbol);
+    if (!s) {
+      s = { symbol: q.symbol, name: q.name, extra: true };
+      stocks.push(s);
+    }
     s.price = q.price;
     s.prevClose = q.prevClose;
     s.percent = q.percent;

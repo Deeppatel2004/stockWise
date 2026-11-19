@@ -1,21 +1,63 @@
-const symbolSelect = document.getElementById("hSymbol");
-symbolSelect.innerHTML = stocks
-  .map((s) => `<option value="${s.symbol}">${s.symbol} - ${s.name}</option>`)
-  .join("");
+const escHtml = (s) =>
+  String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+const symbolInput = document.getElementById("hSymbol");
+const symbolList = document.getElementById("symbolOptions");
 
 const money = (n) => "₹" + fmtPrice(n);
 const signedMoney = (n) => (n >= 0 ? "+" : "-") + "₹" + fmtPrice(Math.abs(n));
+
+// ---------- Suggestions while typing a symbol or company name ----------
+let suggestTimer = null;
+symbolInput.addEventListener("input", () => {
+  clearTimeout(suggestTimer);
+  const q = symbolInput.value.trim();
+  if (q.length < 2) return;
+
+  suggestTimer = setTimeout(async () => {
+    try {
+      const results = await api("/stocks/search?q=" + encodeURIComponent(q));
+      symbolList.innerHTML = results
+        .map((r) => `<option value="${escHtml(r.symbol)}">${escHtml(r.name)}</option>`)
+        .join("");
+    } catch (err) {
+      /* suggestions are optional */
+    }
+  }, 300);
+});
+
+// Makes sure the stock exists and its price is loaded (it can be any NSE stock)
+async function ensureStock(sym) {
+  if (stocks.find((s) => s.symbol === sym)) return;
+  const d = await api("/stocks/" + encodeURIComponent(sym)); // 404 = no such stock
+  stocks.push({
+    symbol: sym,
+    name: d.name,
+    price: d.price,
+    prevClose: d.prevClose ?? d.price,
+    percent: d.percent ?? 0,
+    volume: d.volume ?? 0,
+    extra: true,
+  });
+}
 
 // ---------- Add holding ----------
 document.getElementById("holdingForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
+  const sym = symbolInput.value.trim().toUpperCase();
   const buyPrice = parseFloat(document.getElementById("hPrice").value);
   const qty = parseInt(document.getElementById("hQty").value, 10);
+
+  if (!/^[A-Z0-9&-]{1,20}$/.test(sym)) {
+    showToast("Check the symbol", "Enter an NSE symbol such as TCS or M&M");
+    return;
+  }
   if (!(buyPrice > 0) || !(qty > 0)) return;
 
   try {
-    await addHolding(symbolSelect.value, buyPrice, qty);
+    await ensureStock(sym);
+    await addHolding(sym, buyPrice, qty);
     form.reset();
     renderPortfolio();
   } catch (err) {
@@ -38,10 +80,11 @@ document.getElementById("holdingsBody").addEventListener("click", async (e) => {
 
 // ---------- Render ----------
 function renderPortfolio() {
-  const rows = getHoldings()
+  const all = getHoldings();
+  const rows = all
     .map((h) => {
       const s = stocks.find((x) => x.symbol === h.symbol);
-      if (!s) return null;
+      if (!s) return null; // its price is still loading
       const invested = h.buyPrice * h.qty;
       const current = s.price * h.qty;
       const pl = current - invested;
@@ -66,14 +109,14 @@ function renderPortfolio() {
   retEl.className = dirClass(totalRet);
 
   document.getElementById("holdingsTable").hidden = rows.length === 0;
-  document.getElementById("holdingsEmpty").hidden = rows.length > 0;
+  document.getElementById("holdingsEmpty").hidden = all.length > 0;
 
   document.getElementById("holdingsBody").innerHTML = rows
     .map(
       (r) => `<tr>
         <td>
-          <a class="sym" href="stock.html?symbol=${r.symbol}">${r.symbol}</a>
-          <span class="co">${r.name}</span>
+          <a class="sym" href="stock.html?symbol=${encodeURIComponent(r.symbol)}">${escHtml(r.symbol)}</a>
+          <span class="co">${escHtml(r.name)}</span>
         </td>
         <td>${r.qty}</td>
         <td>${fmtPrice(r.buyPrice)}</td>

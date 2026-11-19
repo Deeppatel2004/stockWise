@@ -2,7 +2,7 @@
 const Alert = require("../models/Alert");
 const Notification = require("../models/Notification");
 const User = require("../models/User");
-const { getQuotes } = require("../services/stockService");
+const { getPrices } = require("../services/marketData");
 const { isEmailConfigured, sendEmail } = require("../services/emailService");
 
 const fmt = (n) => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -18,8 +18,8 @@ async function runAlertCheck() {
     const pending = await Alert.find({ triggered: false });
     if (!pending.length) return;
 
-    const { stocks } = await getQuotes();
-    const prices = new Map(stocks.map((s) => [s.symbol, s.price]));
+    // Real prices only, for every stock that has a pending alert (any NSE stock)
+    const prices = await getPrices([...new Set(pending.map((a) => a.symbol))]);
     const users = new Map(); // each user is loaded only once per check
 
     for (const a of pending) {

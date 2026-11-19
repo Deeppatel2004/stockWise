@@ -1,6 +1,10 @@
+// Makes text safe to put inside HTML (stock names can contain & and similar characters)
+const escHtml = (s) =>
+  String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
 const params = new URLSearchParams(location.search);
 const symbol = (params.get("symbol") || "").toUpperCase();
-const stock = stocks.find((s) => s.symbol === symbol);
+let stock = stocks.find((s) => s.symbol === symbol); // built-in stocks are found right away
 const view = document.getElementById("stockView");
 
 // ---------- Simulated history (used only when live history is unavailable) ----------
@@ -45,14 +49,18 @@ function generateHistory(s, tf) {
 const num = (n) => (n == null ? "—" : fmtPrice(n));
 const fmtMcap = (n) => (n == null ? "—" : "₹" + (n / 1e12).toFixed(2) + " L Cr");
 
-// Simulated stats, shown instantly while the real ones load
-function mockStats() {
+// Simulated stats for the built-in stocks, shown instantly while the real ones load.
+// Other stocks show dashes until the real numbers arrive.
+function placeholderStats() {
+  const info = details[stock.symbol];
+  if (!info) {
+    return { open: null, prevClose: stock.prevClose, high: null, low: null, high52: null, low52: null, volume: stock.volume, mcap: "—", pe: "—" };
+  }
   const rng = mulberry32(hashStr(stock.symbol));
   const prevClose = stock.prevClose;
   const open = prevClose * (1 + (rng() - 0.5) * 0.01);
   const high = Math.max(open, stock.price) * (1 + rng() * 0.01);
   const low = Math.min(open, stock.price) * (1 - rng() * 0.01);
-  const info = details[stock.symbol];
   return {
     open, prevClose, high, low,
     high52: stock.price * (1.1 + rng() * 0.25),
@@ -78,10 +86,10 @@ function statsHtml(s) {
   return items.map(([label, value]) => `<div class="stat"><span>${label}</span><b>${value}</b></div>`).join("");
 }
 
-// Replace the simulated stats with real ones from the server
+// Replace the placeholder stats (and the About text) with real ones from the server
 async function loadRealDetails() {
   try {
-    const d = await api("/stocks/" + stock.symbol);
+    const d = await api("/stocks/" + encodeURIComponent(stock.symbol));
     document.getElementById("statsGrid").innerHTML = statsHtml({
       open: d.open,
       prevClose: d.prevClose,
@@ -93,8 +101,16 @@ async function loadRealDetails() {
       mcap: fmtMcap(d.marketCap),
       pe: d.pe == null ? "—" : d.pe.toFixed(1),
     });
+    if (d.about) {
+      document.getElementById("aboutText").textContent = d.about;
+    } else if (!details[stock.symbol]) {
+      document.getElementById("aboutText").textContent = "No company profile is available for this stock.";
+    }
   } catch (err) {
-    console.warn("Showing simulated stats:", err.message);
+    console.warn("Showing placeholder stats:", err.message);
+    if (!details[stock.symbol]) {
+      document.getElementById("aboutText").textContent = "No company profile is available right now.";
+    }
   }
 }
 
@@ -102,11 +118,12 @@ async function loadRealDetails() {
 function renderPage() {
   const change = stock.price - stock.prevClose;
   const info = details[stock.symbol];
+  const about = info ? info.about : "Loading the company profile…";
 
   view.innerHTML = `
     <div class="stock-head">
       <div>
-        <h1>${stock.name} <small>${stock.symbol}</small></h1>
+        <h1>${escHtml(stock.name)} <small>${escHtml(stock.symbol)}</small></h1>
         <div class="price-row">
           <span class="price-big" id="priceBig">₹${fmtPrice(stock.price)}</span>
           <span id="priceChange" class="${dirClass(change)}">
@@ -127,7 +144,7 @@ function renderPage() {
       <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
     </div>
 
-    <div class="stats-grid" id="statsGrid">${statsHtml(mockStats())}</div>
+    <div class="stats-grid" id="statsGrid">${statsHtml(placeholderStats())}</div>
 
     <div class="card alert-card">
       <h2>🔔 Price Alerts</h2>
@@ -143,8 +160,8 @@ function renderPage() {
     </div>
 
     <div class="card about">
-      <h2>About ${stock.name}</h2>
-      <p>${info.about}</p>
+      <h2>About ${escHtml(stock.name)}</h2>
+      <p id="aboutText">${escHtml(about)}</p>
     </div>
   `;
 
@@ -197,7 +214,7 @@ function renderAlertList() {
           </li>`
         )
         .join("")
-    : `<li class="empty">No alerts for ${stock.symbol} yet.</li>`;
+    : `<li class="empty">No alerts for ${escHtml(stock.symbol)} yet.</li>`;
 }
 
 function setupAlerts() {
@@ -251,7 +268,7 @@ function labelFor(iso, tf) {
 async function getSeries(tf) {
   if (liveSeries[tf]) return liveSeries[tf];
   try {
-    const res = await api(`/stocks/${stock.symbol}/history?range=${tf}`);
+    const res = await api(`/stocks/${encodeURIComponent(stock.symbol)}/history?range=${tf}`);
     liveSeries[tf] = {
       labels: res.points.map((p) => labelFor(p.t, tf)),
       data: res.points.map((p) => p.c),
@@ -329,13 +346,42 @@ window.addEventListener("themechange", () => {
 });
 
 // ---------- Start ----------
-if (!stock) {
+function showNotFound(message) {
   view.innerHTML = `
     <div class="card">
       <h2>Stock not found</h2>
+      <p class="empty">${escHtml(message)}</p>
       <p><a class="back-link" href="index.html">← Back to dashboard</a></p>
     </div>`;
-} else {
+}
+
+// A stock outside the built-in list: look it up on the server and add it to the page's data
+async function loadOtherStock() {
+  const d = await api("/stocks/" + encodeURIComponent(symbol));
+  const s = {
+    symbol,
+    name: d.name,
+    price: d.price,
+    prevClose: d.prevClose ?? d.price,
+    percent: d.percent ?? 0,
+    volume: d.volume ?? 0,
+    extra: true,
+  };
+  stocks.push(s);
+  return s;
+}
+
+async function start() {
+  if (!stock) {
+    if (!/^[A-Z0-9&-]{1,20}$/.test(symbol)) return showNotFound("That is not a valid NSE symbol.");
+    view.innerHTML = `<div class="card"><p class="empty">Loading ${escHtml(symbol)}…</p></div>`;
+    try {
+      stock = await loadOtherStock();
+    } catch (err) {
+      return showNotFound(err.message);
+    }
+  }
+
   document.title = `${stock.symbol} - StockWise`;
   renderPage();
   window.addEventListener("userdataloaded", renderAlertList);
@@ -344,3 +390,5 @@ if (!stock) {
     renderAlertList();
   });
 }
+
+start();

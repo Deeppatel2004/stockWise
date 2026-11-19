@@ -1,25 +1,49 @@
 ﻿const express = require("express");
 const { protect } = require("../middleware/auth");
 const { getQuotes } = require("../services/stockService");
-const { isKnownSymbol, isValidRange, getDetails, getHistory } = require("../services/marketData");
+const {
+  isValidSymbol,
+  isValidRange,
+  isBase,
+  getDetails,
+  getHistory,
+  getExtraQuotes,
+  searchStocks,
+  MAX_EXTRA_SYMBOLS,
+} = require("../services/marketData");
 
 const router = express.Router();
 router.use(protect);
 
-// GET /api/stocks/quotes  ->  { source, stocks: [...], indices: [...] }
+// GET /api/stocks/quotes?symbols=MARUTI,M%26M
+// The built-in stocks and indices, plus live prices for any extra symbols you ask for
 router.get("/quotes", async (req, res) => {
-  res.json(await getQuotes());
+  const base = await getQuotes();
+
+  const wanted = String(req.query.symbols || "")
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter((s) => isValidSymbol(s) && !isBase(s));
+  const symbols = [...new Set(wanted)].slice(0, MAX_EXTRA_SYMBOLS);
+
+  const extra = symbols.length ? await getExtraQuotes(symbols) : [];
+  res.json({ ...base, stocks: [...base.stocks, ...extra] });
 });
 
-// GET /api/stocks/TCS  ->  open, high, low, 52-week range, market cap, P/E
+// GET /api/stocks/search?q=mahindra  ->  [{ symbol, name }]
+router.get("/search", async (req, res) => {
+  res.json(await searchStocks(req.query.q));
+});
+
+// GET /api/stocks/TCS  ->  name, price, open, high, low, 52-week range, market cap, P/E, about
 router.get("/:symbol", async (req, res) => {
   const symbol = req.params.symbol.toUpperCase();
-  if (!isKnownSymbol(symbol)) return res.status(404).json({ message: "Unknown stock" });
+  if (!isValidSymbol(symbol)) return res.status(400).json({ message: "Invalid stock symbol" });
 
   try {
     res.json(await getDetails(symbol));
   } catch (err) {
-    res.status(503).json({ message: err.message });
+    res.status(err.status || 503).json({ message: err.message });
   }
 });
 
@@ -27,13 +51,13 @@ router.get("/:symbol", async (req, res) => {
 router.get("/:symbol/history", async (req, res) => {
   const symbol = req.params.symbol.toUpperCase();
   const range = String(req.query.range || "1M").toUpperCase();
-  if (!isKnownSymbol(symbol)) return res.status(404).json({ message: "Unknown stock" });
+  if (!isValidSymbol(symbol)) return res.status(400).json({ message: "Invalid stock symbol" });
   if (!isValidRange(range)) return res.status(400).json({ message: "Range must be 1D, 1W, 1M, 6M, 1Y or 5Y" });
 
   try {
     res.json(await getHistory(symbol, range));
   } catch (err) {
-    res.status(503).json({ message: err.message });
+    res.status(err.status || 503).json({ message: err.message });
   }
 });
 

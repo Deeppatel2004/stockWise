@@ -1,8 +1,12 @@
+// Makes text safe to put inside HTML (stock names can contain & and similar characters)
+const escHtml = (s) =>
+  String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
 // ---------- Ticker bar ----------
 function renderTicker() {
   const items = [
     ...indices.map((i) => ({ label: i.name, price: i.value, percent: i.percent })),
-    ...stocks.map((s) => ({ label: s.symbol, price: s.price, percent: s.percent })),
+    ...stocks.filter((s) => !s.extra).map((s) => ({ label: s.symbol, price: s.price, percent: s.percent })),
   ];
 
   const html = items
@@ -36,15 +40,17 @@ function renderIndices() {
 // ---------- Tables ----------
 function stockCell(s) {
   return `<td>
-    <a class="sym" href="stock.html?symbol=${s.symbol}">${s.symbol}</a>
-    <span class="co">${s.name}</span>
+    <a class="sym" href="stock.html?symbol=${encodeURIComponent(s.symbol)}">${escHtml(s.symbol)}</a>
+    <span class="co">${escHtml(s.name)}</span>
   </td>`;
 }
 
 function renderTables() {
-  const gainers = [...stocks].filter((s) => s.percent > 0).sort((a, b) => b.percent - a.percent).slice(0, 5);
-  const losers = [...stocks].filter((s) => s.percent < 0).sort((a, b) => a.percent - b.percent).slice(0, 5);
-  const active = [...stocks].sort((a, b) => b.volume - a.volume).slice(0, 5);
+  // Gainers, losers and most active use only the built-in stocks, not ones you searched for
+  const pool = stocks.filter((s) => !s.extra);
+  const gainers = pool.filter((s) => s.percent > 0).sort((a, b) => b.percent - a.percent).slice(0, 5);
+  const losers = pool.filter((s) => s.percent < 0).sort((a, b) => a.percent - b.percent).slice(0, 5);
+  const active = [...pool].sort((a, b) => b.volume - a.volume).slice(0, 5);
 
   document.getElementById("gainersBody").innerHTML = gainers
     .map((s) => `<tr>${stockCell(s)}<td>${fmtPrice(s.price)}</td><td class="up">+${s.percent.toFixed(2)}%</td></tr>`)
@@ -81,40 +87,63 @@ function updateMarketStatus() {
   el.className = "market-status " + (isOpen ? "open" : "closed");
 }
 
-// ---------- Search with autocomplete ----------
+// ---------- Search any NSE stock ----------
 const searchInput = document.getElementById("searchInput");
 const searchResults = document.getElementById("searchResults");
 
+let searchTimer = null;
+let searchToken = 0;
+
+function showResults(items) {
+  searchResults.innerHTML = items.length
+    ? items
+        .map((s) => {
+          const known = stocks.find((x) => x.symbol === s.symbol);
+          const pct = known ? `<span class="${dirClass(known.percent)}">${sign(known.percent)}${known.percent.toFixed(2)}%</span>` : "";
+          return `<li data-symbol="${escHtml(s.symbol)}">
+            <span><b>${escHtml(s.symbol)}</b> <small>${escHtml(s.name)}</small></span>${pct}
+          </li>`;
+        })
+        .join("")
+    : `<li>No results found</li>`;
+  searchResults.hidden = false;
+}
+
 searchInput.addEventListener("input", () => {
-  const q = searchInput.value.trim().toLowerCase();
+  const q = searchInput.value.trim();
+  clearTimeout(searchTimer);
 
   if (!q) {
     searchResults.hidden = true;
     return;
   }
 
-  const matches = stocks
-    .filter((s) => s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q))
-    .slice(0, 6);
+  // 1) instant results from the stocks already loaded
+  const lq = q.toLowerCase();
+  const local = stocks
+    .filter((s) => s.symbol.toLowerCase().includes(lq) || s.name.toLowerCase().includes(lq))
+    .slice(0, 6)
+    .map((s) => ({ symbol: s.symbol, name: s.name }));
+  showResults(local);
 
-  searchResults.innerHTML = matches.length
-    ? matches
-        .map(
-          (s) => `<li data-symbol="${s.symbol}">
-            <span><b>${s.symbol}</b> <small>${s.name}</small></span>
-            <span class="${dirClass(s.percent)}">${sign(s.percent)}${s.percent.toFixed(2)}%</span>
-          </li>`
-        )
-        .join("")
-    : `<li>No results found</li>`;
-
-  searchResults.hidden = false;
+  // 2) then every NSE stock from the server (after a short pause while typing)
+  searchTimer = setTimeout(async () => {
+    const token = ++searchToken;
+    try {
+      const remote = await api("/stocks/search?q=" + encodeURIComponent(q));
+      if (token !== searchToken || searchInput.value.trim() !== q) return; // typed something newer
+      const seen = new Set(local.map((s) => s.symbol));
+      showResults([...local, ...remote.filter((r) => !seen.has(r.symbol))].slice(0, 8));
+    } catch (err) {
+      /* keep the local results */
+    }
+  }, 300);
 });
 
 searchResults.addEventListener("click", (e) => {
   const li = e.target.closest("li[data-symbol]");
   if (!li) return;
-  location.href = "stock.html?symbol=" + li.dataset.symbol;
+  location.href = "stock.html?symbol=" + encodeURIComponent(li.dataset.symbol);
 });
 
 document.addEventListener("click", (e) => {
@@ -128,7 +157,7 @@ function renderWatchlist() {
     .filter(Boolean);
 
   document.getElementById("watchlistTable").hidden = list.length === 0;
-  document.getElementById("watchlistEmpty").hidden = list.length > 0;
+  document.getElementById("watchlistEmpty").hidden = getWatchlist().length > 0;
 
   document.getElementById("watchlistBody").innerHTML = list
     .map(
@@ -136,7 +165,7 @@ function renderWatchlist() {
         ${stockCell(s)}
         <td>${fmtPrice(s.price)}</td>
         <td class="${dirClass(s.percent)}">${sign(s.percent)}${s.percent.toFixed(2)}%</td>
-        <td><button class="link-btn" data-remove="${s.symbol}">Remove</button></td>
+        <td><button class="link-btn" data-remove="${escHtml(s.symbol)}">Remove</button></td>
       </tr>`
     )
     .join("");
