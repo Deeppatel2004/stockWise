@@ -1,7 +1,9 @@
 ﻿const cron = require("node-cron");
 const Alert = require("../models/Alert");
 const Notification = require("../models/Notification");
+const User = require("../models/User");
 const { getQuotes } = require("../services/stockService");
+const { isEmailConfigured, sendEmail } = require("../services/emailService");
 
 const fmt = (n) => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -18,6 +20,7 @@ async function runAlertCheck() {
 
     const { stocks } = await getQuotes();
     const prices = new Map(stocks.map((s) => [s.symbol, s.price]));
+    const users = new Map(); // each user is loaded only once per check
 
     for (const a of pending) {
       const price = prices.get(a.symbol);
@@ -30,11 +33,32 @@ async function runAlertCheck() {
       const claimed = await Alert.findOneAndUpdate({ _id: a._id, triggered: false }, { triggered: true });
       if (!claimed) continue;
 
-      await Notification.create({
-        user: a.user,
-        title: `${a.symbol} price alert`,
-        message: `${a.symbol} is now ₹${fmt(price)} (${a.condition} your target ₹${fmt(a.target)})`,
-      });
+      const title = `${a.symbol} price alert`;
+      const message = `${a.symbol} is now ₹${fmt(price)} (${a.condition} your target ₹${fmt(a.target)})`;
+
+      const key = String(a.user);
+      if (!users.has(key)) users.set(key, await User.findById(a.user));
+      const user = users.get(key);
+      const prefs = user?.notificationSettings || {};
+
+      // In-app notification (bell + popup)
+      if (prefs.inApp !== false) {
+        await Notification.create({ user: a.user, title, message });
+      }
+
+      // Email
+      if (prefs.email && user?.email) {
+        if (!isEmailConfigured()) {
+          console.warn("Email alert skipped: SMTP is not set up in .env");
+        } else {
+          try {
+            await sendEmail(user.email, `StockWise: ${title}`, message);
+          } catch (err) {
+            console.error("Email failed:", err.message);
+          }
+        }
+      }
+
       console.log(`Alert fired: ${a.symbol} ${a.condition} ${a.target}`);
     }
   } catch (err) {

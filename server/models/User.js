@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+﻿const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
@@ -6,6 +6,10 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, select: false },
     watchlist: { type: [String], default: [] },
+    notificationSettings: {
+      inApp: { type: Boolean, default: true },   // show alerts in the bell and as popups
+      email: { type: Boolean, default: false },  // also send alerts by email
+    },
   },
   { timestamps: true }
 );

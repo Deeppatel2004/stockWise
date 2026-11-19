@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockWise - Settings</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a class="logo" href="index.html">📈 Stock<span>Wise</span></a>
+    <div class="header-right">
+      <a class="nav-link" href="index.html">Dashboard</a>
+      <a class="nav-link" href="portfolio.html">Portfolio</a>
+
+      <div class="bell-wrap">
+        <button id="bellBtn" class="icon-btn" aria-label="Notifications">
+          🔔<span id="bellCount" class="bell-count" hidden>0</span>
+        </button>
+        <div id="bellPanel" class="bell-panel" hidden>
+          <button id="enablePush" class="btn" hidden>Enable browser alerts</button>
+          <div class="bell-head">
+            <b>Notifications</b>
+            <span>
+              <button id="markRead" class="link-btn">Mark all read</button>
+              <button id="clearAll" class="link-btn">Clear</button>
+            </span>
+          </div>
+          <ul id="bellList"></ul>
+        </div>
+      </div>
+      <div id="toastBox" class="toast-box"></div>
+
+      <button id="logoutBtn" class="btn">Logout</button>
+      <button id="themeToggle" class="icon-btn" aria-label="Toggle dark and light mode">🌙</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <h2>Notification Settings</h2>
+    <p class="settings-intro">Choose how you want to hear about your price alerts.</p>
+
+    <div class="card">
+      <div class="setting-row first">
+        <div>
+          <b>In-app notifications</b>
+          <span>Show alerts in the 🔔 bell and as popups.</span>
+        </div>
+        <input type="checkbox" id="setInApp" disabled aria-label="In-app notifications" />
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <b>Email notifications</b>
+          <span>Send alerts to <strong id="emailAddr">your email</strong>.</span>
+          <span id="emailWarn" class="warn" hidden>Email is not set up on the server yet (SMTP settings in .env).</span>
+        </div>
+        <input type="checkbox" id="setEmail" disabled aria-label="Email notifications" />
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <b>Send a test email</b>
+          <span id="testEmailMsg" class="test-msg"></span>
+        </div>
+        <button id="testEmailBtn" class="btn">Send test</button>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <b>Browser notifications</b>
+          <span>Status: <strong id="pushStatus">...</strong>. They appear while a StockWise tab is open.</span>
+        </div>
+        <button id="pushBtn" class="btn" hidden>Enable</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">Data may be delayed. Not financial advice.</footer>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="alerts.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

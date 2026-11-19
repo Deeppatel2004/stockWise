@@ -395,3 +395,26 @@ a.sym:hover { color: var(--accent); }
 .auth-card .btn { width: 100%; }
 .auth-error { color: var(--red); font-size: 0.85rem; }
 .auth-theme { position: fixed; top: 16px; right: 16px; }
+
+/* ---------- Step 7: chart note ---------- */
+.chart-note { color: var(--muted); font-size: 0.8rem; min-height: 1.2em; margin-bottom: 6px; }
+
+/* ---------- Step 8: settings page ---------- */
+.settings-intro { color: var(--muted); margin-bottom: 16px; }
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.setting-row.first { border-top: none; padding-top: 0; }
+.setting-row > div { display: flex; flex-direction: column; gap: 2px; }
+.setting-row span { color: var(--muted); font-size: 0.85rem; }
+.setting-row input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); cursor: pointer; flex: 0 0 auto; }
+.setting-row .warn { color: var(--red); }
+
+.test-msg.ok { color: var(--green); }
+.test-msg.bad { color: var(--red); }

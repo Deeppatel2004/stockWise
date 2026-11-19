@@ -3,7 +3,7 @@ const symbol = (params.get("symbol") || "").toUpperCase();
 const stock = stocks.find((s) => s.symbol === symbol);
 const view = document.getElementById("stockView");
 
-// ---------- Mock history generator ----------
+// ---------- Simulated history (used only when live history is unavailable) ----------
 const TIMEFRAMES = {
   "1D": { points: 76,  stepDays: 0,  vol: 0.004 },
   "1W": { points: 7,   stepDays: 1,  vol: 0.012 },
@@ -17,7 +17,6 @@ function generateHistory(s, tf) {
   const { points, stepDays, vol } = TIMEFRAMES[tf];
   const rng = mulberry32(hashStr(s.symbol + tf));
 
-  // Walk backwards from the starting price
   const data = new Array(points);
   data[points - 1] = s.price;
   for (let i = points - 2; i >= 0; i--) {
@@ -42,29 +41,67 @@ function generateHistory(s, tf) {
   return { labels, data };
 }
 
-// ---------- Page ----------
-function renderPage() {
+// ---------- Stats ----------
+const num = (n) => (n == null ? "—" : fmtPrice(n));
+const fmtMcap = (n) => (n == null ? "—" : "₹" + (n / 1e12).toFixed(2) + " L Cr");
+
+// Simulated stats, shown instantly while the real ones load
+function mockStats() {
   const rng = mulberry32(hashStr(stock.symbol));
   const prevClose = stock.prevClose;
-  const change = stock.price - prevClose;
   const open = prevClose * (1 + (rng() - 0.5) * 0.01);
   const high = Math.max(open, stock.price) * (1 + rng() * 0.01);
   const low = Math.min(open, stock.price) * (1 - rng() * 0.01);
-  const high52 = stock.price * (1.1 + rng() * 0.25);
-  const low52 = stock.price * (0.6 + rng() * 0.25);
   const info = details[stock.symbol];
+  return {
+    open, prevClose, high, low,
+    high52: stock.price * (1.1 + rng() * 0.25),
+    low52: stock.price * (0.6 + rng() * 0.25),
+    volume: stock.volume,
+    mcap: info.mcap,
+    pe: info.pe,
+  };
+}
 
-  const stats = [
-    ["Open", fmtPrice(open)],
-    ["Prev. Close", fmtPrice(prevClose)],
-    ["Day High", fmtPrice(high)],
-    ["Day Low", fmtPrice(low)],
-    ["52W High", fmtPrice(high52)],
-    ["52W Low", fmtPrice(low52)],
-    ["Volume", fmtVolume(stock.volume)],
-    ["Market Cap", info.mcap],
-    ["P/E Ratio", info.pe],
+function statsHtml(s) {
+  const items = [
+    ["Open", num(s.open)],
+    ["Prev. Close", num(s.prevClose)],
+    ["Day High", num(s.high)],
+    ["Day Low", num(s.low)],
+    ["52W High", num(s.high52)],
+    ["52W Low", num(s.low52)],
+    ["Volume", s.volume == null ? "—" : fmtVolume(s.volume)],
+    ["Market Cap", s.mcap],
+    ["P/E Ratio", s.pe],
   ];
+  return items.map(([label, value]) => `<div class="stat"><span>${label}</span><b>${value}</b></div>`).join("");
+}
+
+// Replace the simulated stats with real ones from the server
+async function loadRealDetails() {
+  try {
+    const d = await api("/stocks/" + stock.symbol);
+    document.getElementById("statsGrid").innerHTML = statsHtml({
+      open: d.open,
+      prevClose: d.prevClose,
+      high: d.high,
+      low: d.low,
+      high52: d.high52,
+      low52: d.low52,
+      volume: d.volume,
+      mcap: fmtMcap(d.marketCap),
+      pe: d.pe == null ? "—" : d.pe.toFixed(1),
+    });
+  } catch (err) {
+    console.warn("Showing simulated stats:", err.message);
+  }
+}
+
+// ---------- Page ----------
+function renderPage() {
+  const change = stock.price - stock.prevClose;
+  const info = details[stock.symbol];
 
   view.innerHTML = `
     <div class="stock-head">
@@ -86,14 +123,11 @@ function renderPage() {
           .map((tf) => `<button class="tf-btn" data-tf="${tf}">${tf}</button>`)
           .join("")}
       </div>
+      <p id="chartNote" class="chart-note"></p>
       <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
     </div>
 
-    <div class="stats-grid">
-      ${stats
-        .map(([label, value]) => `<div class="stat"><span>${label}</span><b>${value}</b></div>`)
-        .join("")}
-    </div>
+    <div class="stats-grid" id="statsGrid">${statsHtml(mockStats())}</div>
 
     <div class="card alert-card">
       <h2>🔔 Price Alerts</h2>
@@ -117,9 +151,10 @@ function renderPage() {
   setupWatchlistButton();
   setupChart();
   setupAlerts();
+  loadRealDetails();
 }
 
-// ---------- Live price (updates every tick) ----------
+// ---------- Live price (updates every refresh) ----------
 function updateLivePrice() {
   const change = stock.price - stock.prevClose;
   document.getElementById("priceBig").textContent = "₹" + fmtPrice(stock.price);
@@ -199,10 +234,51 @@ function setupAlerts() {
 // ---------- Chart ----------
 let chart = null;
 let currentTF = "1M";
+let drawToken = 0;          // lets a newer click cancel an older, slower request
+const liveSeries = {};      // real history already downloaded, per timeframe
 
-function drawChart(tf) {
+const IST = { timeZone: "Asia/Kolkata" };
+
+function labelFor(iso, tf) {
+  const d = new Date(iso);
+  if (tf === "1D") return d.toLocaleTimeString("en-IN", { ...IST, hour: "2-digit", minute: "2-digit", hour12: false });
+  if (tf === "1W") return d.toLocaleString("en-IN", { ...IST, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  if (tf === "5Y") return d.toLocaleDateString("en-IN", { ...IST, month: "short", year: "2-digit" });
+  return d.toLocaleDateString("en-IN", { ...IST, day: "numeric", month: "short" });
+}
+
+// Real history from the server, or the simulated chart if that fails
+async function getSeries(tf) {
+  if (liveSeries[tf]) return liveSeries[tf];
+  try {
+    const res = await api(`/stocks/${stock.symbol}/history?range=${tf}`);
+    liveSeries[tf] = {
+      labels: res.points.map((p) => labelFor(p.t, tf)),
+      data: res.points.map((p) => p.c),
+      live: true,
+    };
+    return liveSeries[tf];
+  } catch (err) {
+    console.warn("Showing simulated chart:", err.message);
+    return { ...generateHistory(stock, tf), live: false };
+  }
+}
+
+async function drawChart(tf) {
   currentTF = tf;
-  const { labels, data } = generateHistory(stock, tf);
+  const token = ++drawToken;
+
+  document.querySelectorAll(".tf-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tf === tf);
+  });
+  const note = document.getElementById("chartNote");
+  note.textContent = "Loading chart…";
+
+  const { labels, data, live } = await getSeries(tf);
+  if (token !== drawToken) return; // a newer request replaced this one
+
+  note.textContent = live ? "" : "Simulated chart (live history is unavailable right now)";
+
   const color = data[data.length - 1] >= data[0] ? "#16c784" : "#ea3943";
   const css = getComputedStyle(document.documentElement);
   const muted = css.getPropertyValue("--muted").trim();
@@ -237,10 +313,6 @@ function drawChart(tf) {
         y: { ticks: { color: muted }, grid: { color: border } },
       },
     },
-  });
-
-  document.querySelectorAll(".tf-btn").forEach((b) => {
-    b.classList.toggle("active", b.dataset.tf === tf);
   });
 }
 

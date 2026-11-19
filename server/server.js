@@ -1,4 +1,4 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -19,6 +19,7 @@ app.use("/api/watchlist", require("./routes/watchlist"));
 app.use("/api/holdings", require("./routes/holdings"));
 app.use("/api/alerts", require("./routes/alerts"));
 app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api/settings", require("./routes/settings"));
 
 // 404
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));

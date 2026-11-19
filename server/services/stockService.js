@@ -156,4 +156,5 @@ async function getQuotes() {
   return inflight;
 }
 
-module.exports = { getQuotes };
+module.exports = { getQuotes, STOCKS, yahooSymbol, getYahoo, isYahooDown: () => Date.now() < yahooDownUntil, withTimeout };
+
