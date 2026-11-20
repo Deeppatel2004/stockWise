@@ -4,6 +4,7 @@ const Notification = require("../models/Notification");
 const User = require("../models/User");
 const { getPrices } = require("../services/marketData");
 const { isEmailConfigured, sendEmail } = require("../services/emailService");
+const { sendPushToUser } = require("../services/pushService");
 
 const fmt = (n) => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -57,6 +58,18 @@ async function runAlertCheck() {
             console.error("Email failed:", err.message);
           }
         }
+      }
+
+      // Push notification to every device that turned it on (works with the website closed)
+      try {
+        await sendPushToUser(a.user, {
+          title,
+          message,
+          url: "stock.html?symbol=" + encodeURIComponent(a.symbol),
+          tag: "alert-" + a._id,
+        });
+      } catch (err) {
+        console.error("Push failed:", err.message);
       }
 
       console.log(`Alert fired: ${a.symbol} ${a.condition} ${a.target}`);

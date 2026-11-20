@@ -47,6 +47,11 @@ async function refreshPrices() {
 }
 
 function browserNotify(title, message) {
+  try {
+    if (localStorage.getItem("pushOn") === "1") return; // push is on: the service worker shows the notification
+  } catch {
+    /* storage can be blocked */
+  }
   if ("Notification" in window && Notification.permission === "granted") {
     new Notification(title, { body: message });
   }

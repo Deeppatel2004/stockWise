@@ -20,6 +20,7 @@ app.use("/api/holdings", require("./routes/holdings"));
 app.use("/api/alerts", require("./routes/alerts"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/settings", require("./routes/settings"));
+app.use("/api/push", require("./routes/push"));
 
 // 404
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
