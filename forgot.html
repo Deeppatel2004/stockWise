@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockWise - Forgot password</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="auth-body">
+
+  <button id="themeToggle" class="icon-btn auth-theme" aria-label="Toggle dark and light mode">🌙</button>
+
+  <div class="card auth-card">
+    <div class="logo">📈 Stock<span>Wise</span></div>
+    <h2 class="auth-title">Forgot your password?</h2>
+    <p class="auth-note">Enter your email. We will send you a link to choose a new password.</p>
+
+    <form id="forgotForm">
+      <input type="email" id="fEmail" placeholder="Email" autocomplete="email" required />
+      <p id="forgotError" class="auth-error" hidden></p>
+      <button type="submit" id="forgotSubmit" class="btn active">Send reset link</button>
+    </form>
+
+    <p id="forgotDone" class="auth-ok" hidden></p>
+
+    <p class="auth-link"><a href="login.html">← Back to login</a></p>
+  </div>
+
+  <p class="footer">Data may be delayed. Not financial advice.</p>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="forgot.js"></script>
+</body>
+</html>

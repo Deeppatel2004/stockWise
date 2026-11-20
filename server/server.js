@@ -20,6 +20,7 @@ app.use("/api/holdings", require("./routes/holdings"));
 app.use("/api/alerts", require("./routes/alerts"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/settings", require("./routes/settings"));
+app.use("/api/password", require("./routes/passwordReset"));
 app.use("/api/push", require("./routes/push"));
 
 // 404

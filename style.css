@@ -418,3 +418,11 @@ a.sym:hover { color: var(--accent); }
 
 .test-msg.ok { color: var(--green); }
 .test-msg.bad { color: var(--red); }
+
+/* ---------- Password reset pages ---------- */
+.auth-title { text-align: center; font-size: 1.1rem; margin-bottom: 4px; }
+.auth-note { color: var(--muted); font-size: 0.9rem; text-align: center; margin: 4px 0 8px; }
+.auth-ok { color: #16c784; font-size: 0.95rem; text-align: center; margin-top: 8px; }
+.auth-link { text-align: center; margin-top: 14px; font-size: 0.9rem; }
+.auth-link a { color: var(--muted); text-decoration: underline; }
+.auth-link a:hover { color: var(--text); }

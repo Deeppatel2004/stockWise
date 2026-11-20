@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockWise - Reset password</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="auth-body">
+
+  <button id="themeToggle" class="icon-btn auth-theme" aria-label="Toggle dark and light mode">🌙</button>
+
+  <div class="card auth-card">
+    <div class="logo">📈 Stock<span>Wise</span></div>
+    <h2 class="auth-title">Choose a new password</h2>
+
+    <form id="resetForm">
+      <input type="password" id="rPassword" placeholder="New password (min 8 characters)" minlength="8" maxlength="100" autocomplete="new-password" required />
+      <input type="password" id="rConfirm" placeholder="Repeat the new password" minlength="8" maxlength="100" autocomplete="new-password" required />
+      <p id="resetError" class="auth-error" hidden></p>
+      <button type="submit" id="resetSubmit" class="btn active">Change password</button>
+    </form>
+
+    <p id="resetDone" class="auth-ok" hidden></p>
+
+    <p class="auth-link"><a href="login.html">← Back to login</a></p>
+  </div>
+
+  <p class="footer">Data may be delayed. Not financial advice.</p>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="reset.js"></script>
+</body>
+</html>
