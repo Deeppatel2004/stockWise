@@ -1,4 +1,6 @@
-const API_URL = "http://127.0.0.1:5000/api";
+const API_URL = ["localhost", "127.0.0.1", ""].includes(location.hostname)
+  ? "http://localhost:5000/api"
+  : "https://stockwise-l8wv.onrender.com/api";
 const onLoginPage = location.pathname.endsWith("login.html");
 
 // ---------- Login session ----------
