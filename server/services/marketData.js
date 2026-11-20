@@ -54,6 +54,7 @@ function ensureYahooUp() {
 // ---------- Details: price, open, high, low, 52-week range, market cap, P/E, about ----------
 async function getAbout(symbol, yf) {
   if (aboutCache.has(symbol)) return aboutCache.get(symbol);
+  if (svc.isQuoteApiBlocked()) return null; // the profile needs the blocked API; try again later
   let about = null;
   try {
     const res = await svc.withTimeout(
@@ -74,15 +75,15 @@ async function getDetails(symbol) {
   if (hit && Date.now() - hit.at < DETAILS_TTL) return hit.data;
 
   ensureYahooUp();
-  const yf = await svc.getYahoo();
 
   let q;
   try {
-    q = await svc.withTimeout(yf.quote(yahooFor(symbol)), QUOTE_TIMEOUT);
+    [q] = await svc.quoteMany([yahooFor(symbol)]);
   } catch (err) {
     throw asNotFound(err, symbol);
   }
   if (!q || q.regularMarketPrice == null) throw notFound(symbol);
+  const yf = await svc.getYahoo();
 
   const data = {
     source: "yahoo",
@@ -121,9 +122,8 @@ async function getExtraQuotes(symbols) {
 
   if (need.length && !svc.isYahooDown()) {
     try {
-      const yf = await svc.getYahoo();
-      const results = await svc.withTimeout(yf.quote(need.map(yahooFor)), QUOTE_TIMEOUT);
-      const byYahoo = new Map((Array.isArray(results) ? results : [results]).filter(Boolean).map((r) => [r.symbol, r]));
+      const results = await svc.quoteMany(need.map(yahooFor));
+      const byYahoo = new Map(results.filter(Boolean).map((r) => [r.symbol, r]));
 
       for (const sym of need) {
         const q = byYahoo.get(yahooFor(sym));

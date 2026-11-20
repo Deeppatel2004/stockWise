@@ -23,11 +23,13 @@ const INDICES = [
 const CACHE_MS = 30 * 1000;                  // reuse results for 30 seconds
 const RETRY_YAHOO_AFTER_MS = 5 * 60 * 1000;  // after a failure, wait 5 minutes before trying Yahoo again
 const TIMEOUT_MS = 8000;
+const LIBRARY_RETRY_MS = 10 * 60 * 1000; // if Yahoo's quote API blocks us, use the chart endpoint for 10 minutes
 
 let cache = { at: 0, data: null };
 let inflight = null;
 let yahooDownUntil = 0;
 let yahooClient = null;
+let libraryBlockedUntil = 0;
 const warned = new Set(); // so each missing symbol is reported only once
 
 const withTimeout = (promise, ms) =>
@@ -56,10 +58,76 @@ async function getYahoo() {
   return yahooClient;
 }
 
+﻿// ---------- Crumb-free fallback ----------
+// Yahoo often refuses the normal quote API ("Failed to get crumb ... 429") when the
+// request comes from a cloud server. The chart endpoint has no crumb, so it still works.
+const CHART_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+  Accept: "application/json",
+};
+
+// Returns a quote shaped like yahoo-finance2's, or null if the symbol does not exist
+async function chartQuote(sym) {
+  let lastErr;
+  for (const host of ["query1", "query2"]) {
+    try {
+      const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=1d&interval=1d`;
+      const res = await fetch(url, { headers: CHART_HEADERS, signal: AbortSignal.timeout(TIMEOUT_MS) });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Yahoo chart status " + res.status);
+      const meta = (await res.json())?.chart?.result?.[0]?.meta;
+      if (!meta || meta.regularMarketPrice == null) return null;
+
+      const price = meta.regularMarketPrice;
+      const prev = meta.chartPreviousClose ?? meta.previousClose ?? price;
+      return {
+        symbol: sym,
+        longName: meta.longName,
+        shortName: meta.shortName,
+        regularMarketPrice: price,
+        regularMarketPreviousClose: prev,
+        regularMarketChange: price - prev,
+        regularMarketChangePercent: prev ? ((price - prev) / prev) * 100 : 0,
+        regularMarketVolume: meta.regularMarketVolume ?? 0,
+        regularMarketDayHigh: meta.regularMarketDayHigh ?? null,
+        regularMarketDayLow: meta.regularMarketDayLow ?? null,
+        fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? null,
+        fiftyTwoWeekLow: meta.fiftyTwoWeekLow ?? null,
+      };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
+async function chartQuotes(symbols) {
+  const settled = await Promise.allSettled(symbols.map(chartQuote));
+  const found = settled.filter((r) => r.status === "fulfilled" && r.value).map((r) => r.value);
+  const failed = settled.find((r) => r.status === "rejected");
+  if (!found.length && failed) throw failed.reason; // nothing worked: report the real error
+  return found;
+}
+
+// Quotes for many Yahoo symbols at once: the normal API first, the chart endpoint if it is blocked
+async function quoteMany(symbols) {
+  if (Date.now() >= libraryBlockedUntil) {
+    try {
+      const yf = await getYahoo();
+      const r = await withTimeout(yf.quote(symbols), TIMEOUT_MS);
+      return Array.isArray(r) ? r : r ? [r] : [];
+    } catch (err) {
+      if (!/crumb|429|too many|cookie/i.test(err.message)) throw err;
+      libraryBlockedUntil = Date.now() + LIBRARY_RETRY_MS;
+      console.warn(`Yahoo quote API blocked (${err.message}). Using the chart endpoint instead.`);
+    }
+  }
+  return chartQuotes(symbols);
+}
+
 async function fetchFromYahoo() {
-  const yf = await getYahoo();
   const symbols = [...STOCKS.map(yahooSymbol), ...INDICES.map((i) => i.yahoo)];
-  const results = await withTimeout(yf.quote(symbols), TIMEOUT_MS);
+  const results = await quoteMany(symbols);
   const bySymbol = new Map(results.map((r) => [r.symbol, r]));
 
   // A missing symbol is skipped (with one warning) instead of breaking everything
@@ -156,5 +224,14 @@ async function getQuotes() {
   return inflight;
 }
 
-module.exports = { getQuotes, STOCKS, yahooSymbol, getYahoo, isYahooDown: () => Date.now() < yahooDownUntil, withTimeout };
+module.exports = {
+  getQuotes,
+  STOCKS,
+  yahooSymbol,
+  getYahoo,
+  quoteMany,
+  isYahooDown: () => Date.now() < yahooDownUntil,
+  isQuoteApiBlocked: () => Date.now() < libraryBlockedUntil,
+  withTimeout,
+};
 
