@@ -20,7 +20,7 @@ const INDICES = [
   { name: "BANK NIFTY", yahoo: "^NSEBANK", value: 52410.1,  change: -95.6 },
 ];
 
-const CACHE_MS = 30 * 1000;                  // reuse results for 30 seconds
+const CACHE_MS = 5 * 1000;                  // reuse results for 30 seconds
 const RETRY_YAHOO_AFTER_MS = 5 * 60 * 1000;  // after a failure, wait 5 minutes before trying Yahoo again
 const TIMEOUT_MS = 8000;
 const LIBRARY_RETRY_MS = 10 * 60 * 1000; // if Yahoo's quote API blocks us, use the chart endpoint for 10 minutes
@@ -234,4 +234,5 @@ module.exports = {
   isQuoteApiBlocked: () => Date.now() < libraryBlockedUntil,
   withTimeout,
 };
+
 

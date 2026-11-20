@@ -4,7 +4,7 @@
 const svc = require("./stockService");
 
 const DETAILS_TTL = 30 * 1000;
-const QUOTE_TTL = 30 * 1000;
+const QUOTE_TTL = 5 * 1000;
 const SEARCH_TTL = 5 * 60 * 1000;
 const QUOTE_TIMEOUT = 8000;
 const SEARCH_TIMEOUT = 6000;
@@ -254,3 +254,4 @@ module.exports = {
   searchStocks,
   MAX_EXTRA_SYMBOLS,
 };
+

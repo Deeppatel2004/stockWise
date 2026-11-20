@@ -1,5 +1,5 @@
 // ---------- Live data from the server ----------
-const REFRESH_MS = 20000; // every 20 seconds
+const REFRESH_MS = 5000; // every 5 seconds
 
 // Yesterday's close for the built-in stocks (real values arrive from the server)
 stocks.forEach((s) => {
@@ -88,7 +88,8 @@ async function refreshLive() {
   window.dispatchEvent(new Event("pricetick")); // pages redraw
 }
 
-if (getToken()) setInterval(refreshLive, REFRESH_MS);
+// Refresh only while the page is visible, so a forgotten background tab does not hit the server all day
+if (getToken()) setInterval(() => { if (!document.hidden) refreshLive(); }, REFRESH_MS);
 
 window.addEventListener("userdataloaded", () => {
   if (!seenIds) seenIds = new Set(getNotifications().map((n) => n._id));
