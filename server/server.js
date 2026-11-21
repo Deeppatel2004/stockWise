@@ -2,6 +2,7 @@
 
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const connectDB = require("./config/db");
 const { startAlertJob } = require("./jobs/alertJob");
 
@@ -10,7 +11,6 @@ const app = express();
 app.use(cors()); // open in development; restrict to your site's URL when you deploy
 app.use(express.json());
 
-app.get("/", (req, res) => res.send("StockWise API is running. Try /api/health"));
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
 app.use("/api/auth", require("./routes/auth"));
@@ -22,6 +22,17 @@ app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/settings", require("./routes/settings"));
 app.use("/api/password", require("./routes/passwordReset"));
 app.use("/api/push", require("./routes/push"));
+
+// Serve the website and its static assets from the same server.
+const frontendDir = path.resolve(__dirname, "..");
+app.use(express.static(frontendDir, {
+  extensions: ["html"],
+  setHeaders(res, filePath) {
+    if (filePath.endsWith("sw.js")) {
+      res.setHeader("Cache-Control", "no-cache");
+    }
+  },
+}));
 
 // 404
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
