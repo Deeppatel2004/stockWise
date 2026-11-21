@@ -395,7 +395,7 @@ async function drawChart(tf) {
   currentTF = tf;
   const token = ++drawToken;
 
-  document.querySelectorAll(".tf-btn").forEach((b) => {
+  document.querySelectorAll("#tfButtons .tf-btn").forEach((b) => {
     b.classList.toggle("active", b.dataset.tf === tf);
   });
   const note = document.getElementById("chartNote");
@@ -437,7 +437,96 @@ function updateLiveCandle() {
   if (!crosshairOn) showLegend(last);
 }
 
+// ---------- Full TradingView chart (TradingView's free widget: indicators, drawing tools, all intervals) ----------
+let chartMode = "quick";
+try {
+  if (localStorage.getItem("chartMode") === "tv") chartMode = "tv";
+} catch {
+  /* storage can be blocked */
+}
+
+// TradingView's free chart has no NSE data (it would show Apple instead). It has BSE, as end-of-day data,
+// and most companies use the same name on BSE. Symbols use _ where NSE uses & or - (M&M becomes M_M).
+function tradingViewSymbol() {
+  if (isIndex) return { SENSEX: "BSE:SENSEX" }[indexId] || null; // NIFTY 50 and BANK NIFTY exist only on NSE
+  return "BSE:" + stock.symbol.replace(/[&-]/g, "_");
+}
+
+function showTradingView() {
+  const box = document.getElementById("tvBox");
+  if (!box) return;
+  box.innerHTML = "";
+
+  const holder = document.createElement("div");
+  holder.className = "tradingview-widget-container";
+  holder.style.cssText = "height:100%;width:100%";
+  const inner = document.createElement("div");
+  inner.className = "tradingview-widget-container__widget";
+  inner.style.cssText = "height:100%;width:100%";
+  holder.appendChild(inner);
+
+  const script = document.createElement("script");
+  script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+  script.async = true;
+  script.innerHTML = JSON.stringify({
+    autosize: true,
+    symbol: tradingViewSymbol(),
+    interval: "D",
+    timezone: "Asia/Kolkata",
+    theme: document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark",
+    style: "1", // candlesticks
+    locale: "en",
+    allow_symbol_change: true,
+    hide_side_toolbar: false, // the drawing tools on the left
+    withdateranges: true,
+    save_image: true,
+    support_host: "https://www.tradingview.com",
+  });
+  holder.appendChild(script);
+  box.appendChild(holder);
+}
+
+function setChartMode(mode) {
+  chartMode = mode === "tv" ? "tv" : "quick";
+  try {
+    localStorage.setItem("chartMode", chartMode);
+  } catch {
+    /* storage can be blocked */
+  }
+
+  const card = document.getElementById("tfButtons").closest(".card");
+  card.querySelectorAll("#chartModes [data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === chartMode));
+
+  const tv = chartMode === "tv";
+  document.getElementById("tfButtons").style.display = tv ? "none" : "";
+  document.getElementById("chartNote").style.display = tv ? "none" : "";
+  card.querySelector(".chart-wrap").style.display = tv ? "none" : "";
+  document.getElementById("tvBox").style.display = tv ? "block" : "none";
+
+  if (tv) showTradingView();
+  else if (chart) chart.timeScale().fitContent();
+}
+
+function setupChartModes() {
+  if (!tradingViewSymbol()) return; // no TradingView chart for this one: only the Quick chart
+  const card = document.getElementById("tfButtons").closest(".card");
+  card.querySelector(".chart-wrap").insertAdjacentHTML("afterend", '<div id="tvBox" class="tv-box"></div>');
+  card.insertAdjacentHTML(
+    "afterbegin",
+    '<div class="tf-buttons chart-mode" id="chartModes">' +
+      '<button class="tf-btn" data-mode="quick">Quick chart</button>' +
+      '<button class="tf-btn" data-mode="tv">TradingView (BSE, end of day)</button>' +
+      "</div>"
+  );
+  document.getElementById("chartModes").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-mode]");
+    if (btn) setChartMode(btn.dataset.mode);
+  });
+  setChartMode(chartMode);
+}
+
 function setupChart() {
+  setupChartModes();
   document.getElementById("tfButtons").addEventListener("click", (e) => {
     const btn = e.target.closest(".tf-btn");
     if (btn) drawChart(btn.dataset.tf);
@@ -447,6 +536,7 @@ function setupChart() {
 
 window.addEventListener("themechange", () => {
   if (chart) chart.applyOptions(themeOptions());
+  if (chartMode === "tv") showTradingView(); // the TradingView chart takes its colours when it is created
 });
 
 // ---------- Start ----------
