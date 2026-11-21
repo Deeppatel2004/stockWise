@@ -227,9 +227,18 @@ async function getHistory(symbol, range) {
     throw asNotFound(err, symbol);
   }
 
+  // One candle per point: open, high, low, close and volume (o, h, l, c, v)
+  const r2 = (n) => +Number(n).toFixed(2);
   let points = (result.quotes || [])
     .filter((q) => q.close != null)
-    .map((q) => ({ t: new Date(q.date).toISOString(), c: +q.close.toFixed(2) }));
+    .map((q) => ({
+      t: new Date(q.date).toISOString(),
+      o: r2(q.open ?? q.close),
+      h: r2(q.high ?? q.close),
+      l: r2(q.low ?? q.close),
+      c: r2(q.close),
+      v: q.volume ?? 0,
+    }));
 
   // "1D" shows only the latest trading day
   if (cfg.lastSessionOnly && points.length) {

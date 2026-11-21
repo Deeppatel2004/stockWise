@@ -426,3 +426,11 @@ a.sym:hover { color: var(--accent); }
 .auth-link { text-align: center; margin-top: 14px; font-size: 0.9rem; }
 .auth-link a { color: var(--muted); text-decoration: underline; }
 .auth-link a:hover { color: var(--text); }
+
+/* ---------- Candlestick chart ---------- */
+.chart-wrap { position: relative; height: 400px; }
+#priceChart { position: absolute; inset: 0; }
+.chart-legend { position: absolute; top: 6px; left: 8px; z-index: 3; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.78rem; color: var(--muted); pointer-events: none; max-width: calc(100% - 80px); }
+.chart-legend b { font-weight: 600; color: var(--text); }
+.chart-legend .up b, .chart-legend .down b { color: inherit; }
+@media (max-width: 600px) { .chart-wrap { height: 340px; } }

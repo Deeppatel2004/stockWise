@@ -17,32 +17,36 @@ const TIMEFRAMES = {
   "5Y": { points: 60,  stepDays: 30, vol: 0.06 },
 };
 
-function generateHistory(s, tf) {
+const IST_OFFSET = 19800; // IST is 5h30m ahead of UTC (in seconds)
+
+// Simulated candles: [{ t, o, h, l, c, v }]
+function simulatePoints(s, tf) {
   const { points, stepDays, vol } = TIMEFRAMES[tf];
   const rng = mulberry32(hashStr(s.symbol + tf));
 
-  const data = new Array(points);
-  data[points - 1] = s.price;
+  const closes = new Array(points);
+  closes[points - 1] = s.price;
   for (let i = points - 2; i >= 0; i--) {
-    data[i] = data[i + 1] * (1 + (rng() - 0.5) * vol * 2);
+    closes[i] = closes[i + 1] * (1 + (rng() - 0.5) * vol * 2);
   }
 
-  const labels = [];
-  for (let i = 0; i < points; i++) {
-    if (tf === "1D") {
-      const mins = 9 * 60 + 15 + i * 5; // 9:15 AM, every 5 minutes
-      labels.push(String(Math.floor(mins / 60)).padStart(2, "0") + ":" + String(mins % 60).padStart(2, "0"));
-    } else {
-      const d = new Date();
-      d.setDate(d.getDate() - (points - 1 - i) * stepDays);
-      labels.push(
-        tf === "5Y"
-          ? d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" })
-          : d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-      );
-    }
-  }
-  return { labels, data };
+  // Today at 00:00 IST, in milliseconds
+  const ist = new Date(Date.now() + IST_OFFSET * 1000);
+  const dayStart = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()) - IST_OFFSET * 1000;
+  const open915 = dayStart + (9 * 60 + 15) * 60 * 1000;
+
+  return closes.map((close, i) => {
+    const open = i ? closes[i - 1] : close * (1 + (rng() - 0.5) * vol);
+    const t = tf === "1D" ? open915 + i * 5 * 60 * 1000 : open915 - (points - 1 - i) * stepDays * 24 * 60 * 60 * 1000;
+    return {
+      t: new Date(t).toISOString(),
+      o: open,
+      h: Math.max(open, close) * (1 + rng() * vol * 0.5),
+      l: Math.min(open, close) * (1 - rng() * vol * 0.5),
+      c: close,
+      v: Math.round((s.volume / points) * (0.5 + rng())),
+    };
+  });
 }
 
 // ---------- Stats ----------
@@ -141,7 +145,10 @@ function renderPage() {
           .join("")}
       </div>
       <p id="chartNote" class="chart-note"></p>
-      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+      <div class="chart-wrap">
+        <div id="priceChart"></div>
+        <div id="chartLegend" class="chart-legend"></div>
+      </div>
     </div>
 
     <div class="stats-grid" id="statsGrid">${statsHtml(placeholderStats())}</div>
@@ -178,6 +185,7 @@ function updateLivePrice() {
   const el = document.getElementById("priceChange");
   el.className = dirClass(change);
   el.textContent = `${sign(change)}${change.toFixed(2)} (${sign(stock.percent)}${stock.percent.toFixed(2)}%)`;
+  updateLiveCandle();
 }
 
 // ---------- Watchlist button ----------
@@ -248,37 +256,135 @@ function setupAlerts() {
   renderAlertList();
 }
 
-// ---------- Chart ----------
+// ---------- Chart (candlesticks and volume, like TradingView) ----------
+const UP = "#16c784";
+const DOWN = "#ea3943";
+const INTRADAY = { "1D": true, "1W": true }; // these show clock times, the others show dates
+
 let chart = null;
+let candleSeries = null;
+let volumeSeries = null;
+let currentBars = [];
 let currentTF = "1M";
-let drawToken = 0;          // lets a newer click cancel an older, slower request
-const liveSeries = {};      // real history already downloaded, per timeframe
+let drawToken = 0;       // lets a newer click cancel an older, slower request
+let chartIsLive = false; // true when the candles are real (not simulated)
+let crosshairOn = false;
+const liveSeries = {};   // real history already downloaded, per timeframe
 
-const IST = { timeZone: "Asia/Kolkata" };
-
-function labelFor(iso, tf) {
-  const d = new Date(iso);
-  if (tf === "1D") return d.toLocaleTimeString("en-IN", { ...IST, hour: "2-digit", minute: "2-digit", hour12: false });
-  if (tf === "1W") return d.toLocaleString("en-IN", { ...IST, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
-  if (tf === "5Y") return d.toLocaleDateString("en-IN", { ...IST, month: "short", year: "2-digit" });
-  return d.toLocaleDateString("en-IN", { ...IST, day: "numeric", month: "short" });
+// Time for the chart. Clock times are shifted so that they show in IST; days use the IST date.
+function toChartTime(iso, tf) {
+  const ms = new Date(iso).getTime();
+  if (INTRADAY[tf]) return Math.floor(ms / 1000) + IST_OFFSET;
+  const d = new Date(ms + IST_OFFSET * 1000);
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
 }
 
-// Real history from the server, or the simulated chart if that fails
+const keyOf = (time) => (typeof time === "number" ? time : time.year * 10000 + time.month * 100 + time.day);
+
+// Candles must be in time order with no duplicates
+function buildBars(points, tf) {
+  const map = new Map();
+  for (const p of points) {
+    const time = toChartTime(p.t, tf);
+    map.set(keyOf(time), {
+      time,
+      open: p.o ?? p.c,
+      high: p.h ?? p.c,
+      low: p.l ?? p.c,
+      close: p.c,
+      volume: p.v || 0,
+    });
+  }
+  return [...map.entries()].sort((a, b) => a[0] - b[0]).map((e) => e[1]);
+}
+
+// Real history from the server, or simulated candles if that fails
 async function getSeries(tf) {
   if (liveSeries[tf]) return liveSeries[tf];
   try {
     const res = await api(`/stocks/${encodeURIComponent(stock.symbol)}/history?range=${tf}`);
-    liveSeries[tf] = {
-      labels: res.points.map((p) => labelFor(p.t, tf)),
-      data: res.points.map((p) => p.c),
-      live: true,
-    };
+    liveSeries[tf] = { bars: buildBars(res.points, tf), live: true };
     return liveSeries[tf];
   } catch (err) {
     console.warn("Showing simulated chart:", err.message);
-    return { ...generateHistory(stock, tf), live: false };
+    return { bars: buildBars(simulatePoints(stock, tf), tf), live: false };
   }
+}
+
+function chartColors() {
+  const css = getComputedStyle(document.documentElement);
+  return {
+    text: css.getPropertyValue("--muted").trim() || "#888888",
+    grid: css.getPropertyValue("--border").trim() || "#2a2e39",
+  };
+}
+
+function themeOptions() {
+  const c = chartColors();
+  return {
+    layout: { background: { type: "solid", color: "transparent" }, textColor: c.text },
+    grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
+    rightPriceScale: { borderColor: c.grid },
+    timeScale: { borderColor: c.grid },
+  };
+}
+
+// The line at the top of the chart: Open, High, Low, Close and the change
+function showLegend(bar) {
+  const legend = document.getElementById("chartLegend");
+  if (!legend || !bar) return;
+
+  const i = currentBars.findIndex((b) => keyOf(b.time) === keyOf(bar.time));
+  const prevClose = i > 0 ? currentBars[i - 1].close : bar.open;
+  const change = bar.close - prevClose;
+  const pct = prevClose ? (change / prevClose) * 100 : 0;
+  const cls = dirClass(change);
+
+  legend.innerHTML =
+    `<span>O <b>${fmtPrice(bar.open)}</b></span>` +
+    `<span>H <b>${fmtPrice(bar.high)}</b></span>` +
+    `<span>L <b>${fmtPrice(bar.low)}</b></span>` +
+    `<span>C <b>${fmtPrice(bar.close)}</b></span>` +
+    `<span class="${cls}"><b>${sign(change)}${change.toFixed(2)} (${sign(pct)}${pct.toFixed(2)}%)</b></span>` +
+    (bar.volume ? `<span>Vol <b>${fmtVolume(bar.volume)}</b></span>` : "");
+}
+
+function ensureChart() {
+  if (chart) return;
+
+  chart = LightweightCharts.createChart(document.getElementById("priceChart"), {
+    autoSize: true, // follows the size of its box
+    ...themeOptions(),
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    localization: { priceFormatter: (p) => fmtPrice(p) },
+  });
+
+  candleSeries = chart.addCandlestickSeries({
+    upColor: UP,
+    downColor: DOWN,
+    borderUpColor: UP,
+    borderDownColor: DOWN,
+    wickUpColor: UP,
+    wickDownColor: DOWN,
+    priceLineStyle: LightweightCharts.LineStyle.Dotted, // dotted line across to the latest price
+  });
+  chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: 0.25 } });
+
+  // Volume bars along the bottom
+  volumeSeries = chart.addHistogramSeries({
+    priceFormat: { type: "volume" },
+    priceScaleId: "volume",
+    lastValueVisible: false,
+    priceLineVisible: false,
+  });
+  chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+
+  chart.subscribeCrosshairMove((param) => {
+    const bar = param.time ? param.seriesData.get(candleSeries) : null;
+    crosshairOn = Boolean(bar);
+    const shown = bar ? currentBars.find((b) => keyOf(b.time) === keyOf(param.time)) : currentBars[currentBars.length - 1];
+    showLegend(shown);
+  });
 }
 
 async function drawChart(tf) {
@@ -291,46 +397,38 @@ async function drawChart(tf) {
   const note = document.getElementById("chartNote");
   note.textContent = "Loading chart…";
 
-  const { labels, data, live } = await getSeries(tf);
+  const { bars, live } = await getSeries(tf);
   if (token !== drawToken) return; // a newer request replaced this one
 
   note.textContent = live ? "" : "Simulated chart (live history is unavailable right now)";
 
-  const color = data[data.length - 1] >= data[0] ? "#16c784" : "#ea3943";
-  const css = getComputedStyle(document.documentElement);
-  const muted = css.getPropertyValue("--muted").trim();
-  const border = css.getPropertyValue("--border").trim();
+  ensureChart();
+  chart.applyOptions({ timeScale: { timeVisible: Boolean(INTRADAY[tf]), secondsVisible: false } });
 
-  if (chart) chart.destroy();
+  currentBars = bars;
+  chartIsLive = live;
 
-  chart = new Chart(document.getElementById("priceChart"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        data,
-        borderColor: color,
-        backgroundColor: color + "22",
-        fill: true,
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.25,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: (c) => "₹" + fmtPrice(c.parsed.y) } },
-      },
-      scales: {
-        x: { ticks: { color: muted, maxTicksLimit: 8 }, grid: { display: false } },
-        y: { ticks: { color: muted }, grid: { color: border } },
-      },
-    },
-  });
+  candleSeries.setData(bars.map((b) => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
+  volumeSeries.setData(
+    bars.map((b) => ({ time: b.time, value: b.volume, color: b.close >= b.open ? UP + "66" : DOWN + "66" }))
+  );
+  chart.timeScale().fitContent();
+  showLegend(bars[bars.length - 1]);
+}
+
+// Every price refresh moves the last candle, so the chart is live
+function updateLiveCandle() {
+  if (!candleSeries || !chartIsLive || !currentBars.length) return;
+
+  const last = currentBars[currentBars.length - 1];
+  const price = stock.price;
+  if (!(price > 0) || price === last.close) return;
+
+  last.close = price;
+  last.high = Math.max(last.high, price);
+  last.low = Math.min(last.low, price);
+  candleSeries.update({ time: last.time, open: last.open, high: last.high, low: last.low, close: last.close });
+  if (!crosshairOn) showLegend(last);
 }
 
 function setupChart() {
@@ -342,7 +440,7 @@ function setupChart() {
 }
 
 window.addEventListener("themechange", () => {
-  if (chart) drawChart(currentTF);
+  if (chart) chart.applyOptions(themeOptions());
 });
 
 // ---------- Start ----------
