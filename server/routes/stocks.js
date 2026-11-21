@@ -7,6 +7,8 @@ const {
   isBase,
   getDetails,
   getHistory,
+  getIndexHistory,
+  isIndexId,
   getExtraQuotes,
   searchStocks,
   MAX_EXTRA_SYMBOLS,
@@ -33,6 +35,20 @@ router.get("/quotes", async (req, res) => {
 // GET /api/stocks/search?q=mahindra  ->  [{ symbol, name }]
 router.get("/search", async (req, res) => {
   res.json(await searchStocks(req.query.q));
+});
+
+// GET /api/stocks/indices/NIFTY50/history?range=1M  (NIFTY50, SENSEX or BANKNIFTY)
+router.get("/indices/:id/history", async (req, res) => {
+  const id = req.params.id.toUpperCase();
+  const range = String(req.query.range || "1M").toUpperCase();
+  if (!isIndexId(id)) return res.status(404).json({ message: "Unknown index" });
+  if (!isValidRange(range)) return res.status(400).json({ message: "Range must be 1D, 1W, 1M, 6M, 1Y or 5Y" });
+
+  try {
+    res.json(await getIndexHistory(id, range));
+  } catch (err) {
+    res.status(err.status || 503).json({ message: err.message });
+  }
 });
 
 // GET /api/stocks/TCS  ->  name, price, open, high, low, 52-week range, market cap, P/E, about

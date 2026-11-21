@@ -4,7 +4,10 @@ const escHtml = (s) =>
 
 const params = new URLSearchParams(location.search);
 const symbol = (params.get("symbol") || "").toUpperCase();
-let stock = stocks.find((s) => s.symbol === symbol); // built-in stocks are found right away
+const indexId = (params.get("index") || "").toUpperCase(); // stock.html?index=NIFTY50 shows an index
+const INDEX_NAMES = { NIFTY50: "NIFTY 50", SENSEX: "SENSEX", BANKNIFTY: "BANK NIFTY" };
+const isIndex = Boolean(indexId);
+let stock = isIndex ? null : stocks.find((s) => s.symbol === symbol); // built-in stocks are found right away
 const view = document.getElementById("stockView");
 
 // ---------- Simulated history (used only when live history is unavailable) ----------
@@ -181,7 +184,7 @@ function renderPage() {
 // ---------- Live price (updates every refresh) ----------
 function updateLivePrice() {
   const change = stock.price - stock.prevClose;
-  document.getElementById("priceBig").textContent = "₹" + fmtPrice(stock.price);
+  document.getElementById("priceBig").textContent = (isIndex ? "" : "₹") + fmtPrice(stock.price);
   const el = document.getElementById("priceChange");
   el.className = dirClass(change);
   el.textContent = `${sign(change)}${change.toFixed(2)} (${sign(stock.percent)}${stock.percent.toFixed(2)}%)`;
@@ -302,7 +305,8 @@ function buildBars(points, tf) {
 async function getSeries(tf) {
   if (liveSeries[tf]) return liveSeries[tf];
   try {
-    const res = await api(`/stocks/${encodeURIComponent(stock.symbol)}/history?range=${tf}`);
+    const path = isIndex ? `/stocks/indices/${indexId}/history` : `/stocks/${encodeURIComponent(stock.symbol)}/history`;
+    const res = await api(`${path}?range=${tf}`);
     liveSeries[tf] = { bars: buildBars(res.points, tf), live: true };
     return liveSeries[tf];
   } catch (err) {
@@ -407,6 +411,8 @@ async function drawChart(tf) {
 
   currentBars = bars;
   chartIsLive = live;
+  // Indices have no volume, so the price area can use the whole height
+  chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: bars.some((b) => b.volume > 0) ? 0.25 : 0.08 } });
 
   candleSeries.setData(bars.map((b) => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
   volumeSeries.setData(
@@ -469,7 +475,60 @@ async function loadOtherStock() {
   return s;
 }
 
+// ---------- Index page (NIFTY 50, SENSEX, BANK NIFTY): the price and the same candlestick chart ----------
+function indexAsStock() {
+  const i = indices.find((x) => x.name === INDEX_NAMES[indexId]);
+  return i ? { symbol: indexId, name: i.name, price: i.value, prevClose: i.value - i.change, percent: i.percent, volume: 0 } : null;
+}
+
+function renderIndexPage() {
+  const change = stock.price - stock.prevClose;
+
+  view.innerHTML = `
+    <div class="stock-head">
+      <div>
+        <h1>${escHtml(stock.name)} <small>INDEX</small></h1>
+        <div class="price-row">
+          <span class="price-big" id="priceBig">${fmtPrice(stock.price)}</span>
+          <span id="priceChange" class="${dirClass(change)}">
+            ${sign(change)}${change.toFixed(2)} (${sign(stock.percent)}${stock.percent.toFixed(2)}%)
+          </span>
+        </div>
+      </div>
+      <a class="back-link" href="index.html">← Dashboard</a>
+    </div>
+
+    <div class="card">
+      <div class="tf-buttons" id="tfButtons">
+        ${Object.keys(TIMEFRAMES)
+          .map((tf) => `<button class="tf-btn" data-tf="${tf}">${tf}</button>`)
+          .join("")}
+      </div>
+      <p id="chartNote" class="chart-note"></p>
+      <div class="chart-wrap">
+        <div id="priceChart"></div>
+        <div id="chartLegend" class="chart-legend"></div>
+      </div>
+    </div>
+  `;
+
+  setupChart();
+}
+
+function startIndexPage() {
+  stock = indexAsStock();
+  if (!stock) return showNotFound("That index does not exist.");
+
+  document.title = `${stock.name} - StockWise`;
+  renderIndexPage();
+  window.addEventListener("pricetick", () => {
+    Object.assign(stock, indexAsStock());
+    updateLivePrice();
+  });
+}
+
 async function start() {
+  if (isIndex) return startIndexPage();
   if (!stock) {
     if (!/^[A-Z0-9&-]{1,20}$/.test(symbol)) return showNotFound("That is not a valid NSE symbol.");
     view.innerHTML = `<div class="card"><p class="empty">Loading ${escHtml(symbol)}…</p></div>`;

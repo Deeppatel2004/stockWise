@@ -22,17 +22,18 @@ function renderTicker() {
   document.getElementById("tickerTrack").innerHTML = html + html;
 }
 
-// ---------- Index cards ----------
+// ---------- Index cards (click one to open its chart) ----------
+const INDEX_IDS = { "NIFTY 50": "NIFTY50", SENSEX: "SENSEX", "BANK NIFTY": "BANKNIFTY" };
 function renderIndices() {
   document.getElementById("indicesGrid").innerHTML = indices
     .map(
-      (i) => `<div class="index-card">
+      (i) => `<a class="index-card index-link" href="stock.html?index=${INDEX_IDS[i.name] || ""}">
         <div class="name">${i.name}</div>
         <div class="value">${fmtPrice(i.value)}</div>
         <div class="${dirClass(i.change)}">
           ${sign(i.change)}${i.change.toFixed(2)} (${sign(i.percent)}${i.percent.toFixed(2)}%)
         </div>
-      </div>`
+      </a>`
     )
     .join("");
 }

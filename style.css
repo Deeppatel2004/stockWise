@@ -434,3 +434,7 @@ a.sym:hover { color: var(--accent); }
 .chart-legend b { font-weight: 600; color: var(--text); }
 .chart-legend .up b, .chart-legend .down b { color: inherit; }
 @media (max-width: 600px) { .chart-wrap { height: 340px; } }
+
+/* ---------- Clickable index cards ---------- */
+.index-link { display: block; color: inherit; text-decoration: none; cursor: pointer; }
+.index-link:hover { filter: brightness(1.15); }

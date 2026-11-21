@@ -202,7 +202,7 @@ async function searchStocks(rawQuery) {
 // ---------- History for the chart ----------
 const istDay = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
-async function getHistory(symbol, range) {
+async function getHistory(symbol, range, yahooSymbol) {
   const cfg = RANGES[range];
   if (!cfg) throw new Error("Unknown range");
 
@@ -216,7 +216,7 @@ async function getHistory(symbol, range) {
   let result;
   try {
     result = await svc.withTimeout(
-      yf.chart(yahooFor(symbol), {
+      yf.chart(yahooSymbol || yahooFor(symbol), {
         period1: new Date(Date.now() - cfg.days * 24 * 60 * 60 * 1000),
         period2: new Date(),
         interval: cfg.interval,
@@ -252,7 +252,14 @@ async function getHistory(symbol, range) {
   return data;
 }
 
+// Indices: the page asks for NIFTY50, SENSEX or BANKNIFTY
+const INDEX_YAHOO = { NIFTY50: "^NSEI", SENSEX: "^BSESN", BANKNIFTY: "^NSEBANK" };
+const isIndexId = (id) => Object.prototype.hasOwnProperty.call(INDEX_YAHOO, id);
+const getIndexHistory = (id, range) => getHistory(INDEX_YAHOO[id], range, INDEX_YAHOO[id]);
+
 module.exports = {
+  isIndexId,
+  getIndexHistory,
   isValidSymbol,
   isValidRange,
   isBase,
