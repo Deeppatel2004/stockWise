@@ -1,8 +1,14 @@
-// Relative API requests let the app work on phones and LAN devices when the
-// Express server is used to serve the frontend.
+const hostname = location.hostname;
+const isLocalHost =
+  ["localhost", "127.0.0.1", "::1"].includes(hostname) ||
+  /^10\./.test(hostname) ||
+  /^192\.168\./.test(hostname) ||
+  /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
 const API_URL = location.protocol === "file:"
   ? "http://localhost:5000/api"
-  : "/api";
+  : isLocalHost
+    ? "/api"
+    : "https://stockwise-l8wv.onrender.com/api";
 const onLoginPage = /(login|forgot|reset)\.html$/.test(location.pathname);
 
 // ---------- Login session ----------
