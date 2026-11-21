@@ -267,6 +267,13 @@ const INTRADAY = { "1D": true, "1W": true }; // these show clock times, the othe
 let chart = null;
 let candleSeries = null;
 let volumeSeries = null;
+let lineSeries = null;
+let chartType = "candles"; // "candles" or "line"
+try {
+  if (localStorage.getItem("chartType") === "line") chartType = "line";
+} catch {
+  /* storage can be blocked */
+}
 let currentBars = [];
 let currentTF = "1M";
 let drawToken = 0;       // lets a newer click cancel an older, slower request
@@ -372,6 +379,14 @@ function ensureChart() {
     wickDownColor: DOWN,
     priceLineStyle: LightweightCharts.LineStyle.Dotted, // dotted line across to the latest price
   });
+  lineSeries = chart.addAreaSeries({
+    lineColor: "#2962ff",
+    topColor: "rgba(41, 98, 255, 0.28)",
+    bottomColor: "rgba(41, 98, 255, 0.02)",
+    lineWidth: 2,
+    priceLineStyle: LightweightCharts.LineStyle.Dotted,
+  });
+  applyChartType();
   chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: 0.25 } });
 
   // Volume bars along the bottom
@@ -384,7 +399,7 @@ function ensureChart() {
   chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
 
   chart.subscribeCrosshairMove((param) => {
-    const bar = param.time ? param.seriesData.get(candleSeries) : null;
+    const bar = param.time ? param.seriesData.get(candleSeries) || param.seriesData.get(lineSeries) : null;
     crosshairOn = Boolean(bar);
     const shown = bar ? currentBars.find((b) => keyOf(b.time) === keyOf(param.time)) : currentBars[currentBars.length - 1];
     showLegend(shown);
@@ -415,6 +430,7 @@ async function drawChart(tf) {
   chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: bars.some((b) => b.volume > 0) ? 0.25 : 0.08 } });
 
   candleSeries.setData(bars.map((b) => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
+  lineSeries.setData(bars.map((b) => ({ time: b.time, value: b.close })));
   volumeSeries.setData(
     bars.map((b) => ({ time: b.time, value: b.volume, color: b.close >= b.open ? UP + "66" : DOWN + "66" }))
   );
@@ -434,6 +450,7 @@ function updateLiveCandle() {
   last.high = Math.max(last.high, price);
   last.low = Math.min(last.low, price);
   candleSeries.update({ time: last.time, open: last.open, high: last.high, low: last.low, close: last.close });
+  lineSeries.update({ time: last.time, value: last.close });
   if (!crosshairOn) showLegend(last);
 }
 
@@ -499,6 +516,8 @@ function setChartMode(mode) {
 
   const tv = chartMode === "tv";
   document.getElementById("tfButtons").style.display = tv ? "none" : "";
+  const types = document.getElementById("chartTypes");
+  if (types) types.style.display = tv ? "none" : "";
   document.getElementById("chartNote").style.display = tv ? "none" : "";
   card.querySelector(".chart-wrap").style.display = tv ? "none" : "";
   document.getElementById("tvBox").style.display = tv ? "block" : "none";
@@ -525,8 +544,39 @@ function setupChartModes() {
   setChartMode(chartMode);
 }
 
+// Candles or a simple line (the original look)
+function applyChartType() {
+  if (!candleSeries || !lineSeries) return;
+  candleSeries.applyOptions({ visible: chartType === "candles" });
+  lineSeries.applyOptions({ visible: chartType === "line" });
+  document.querySelectorAll("#chartTypes [data-type]").forEach((b) => b.classList.toggle("active", b.dataset.type === chartType));
+}
+
+function setupChartTypes() {
+  document.getElementById("tfButtons").insertAdjacentHTML(
+    "beforebegin",
+    '<div class="tf-buttons chart-mode" id="chartTypes">' +
+      '<button class="tf-btn" data-type="line">Line</button>' +
+      '<button class="tf-btn" data-type="candles">Candles</button>' +
+      "</div>"
+  );
+  document.getElementById("chartTypes").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-type]");
+    if (!btn) return;
+    chartType = btn.dataset.type;
+    try {
+      localStorage.setItem("chartType", chartType);
+    } catch {
+      /* storage can be blocked */
+    }
+    applyChartType();
+  });
+  applyChartType();
+}
+
 function setupChart() {
   setupChartModes();
+  setupChartTypes();
   document.getElementById("tfButtons").addEventListener("click", (e) => {
     const btn = e.target.closest(".tf-btn");
     if (btn) drawChart(btn.dataset.tf);
