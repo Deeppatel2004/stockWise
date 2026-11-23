@@ -46,3 +46,6 @@ self.addEventListener("notificationclick", (event) => {
     })()
   );
 });
+
+// Needed so the browser allows installing the app. It does nothing else: pages still come from the network.
+self.addEventListener("fetch", () => {});
