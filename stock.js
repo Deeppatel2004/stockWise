@@ -478,7 +478,7 @@ try {
 // and most companies use the same name on BSE. Symbols use _ where NSE uses & or - (M&M becomes M_M).
 function tradingViewSymbol() {
   if (isIndex) return { SENSEX: "BSE:SENSEX" }[indexId] || null; // NIFTY 50 and BANK NIFTY exist only on NSE
-  return "BSE:" + stock.symbol.replace(/[&-]/g, "_");
+  return "BSE:" + stock.symbol.replace(/-BO$/, "").replace(/[&-]/g, "_"); // ABC-BO is a BSE stock
 }
 
 function showTradingView() {
