@@ -87,45 +87,66 @@ console.log("manifest: created");
 // ---------- 3. Small script: install button ----------
 fs.writeFileSync(
   "pwa.js",
-  `// Install button (Chrome and Edge). On an iPhone: Share, then Add to Home Screen.
+  `// Installing the app: the button is in Settings. On an iPhone: Share, then Add to Home Screen.
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
 let installEvent = null;
+const isInstalled = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIphone = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
-  try {
-    if (localStorage.getItem("installDismissed") === "1") return;
-  } catch {
-    /* storage can be blocked */
-  }
   installEvent = e;
-  if (document.getElementById("installBtn")) return;
-  const box = document.createElement("div");
-  box.id = "installBtn";
-  box.style.cssText =
-    "position:fixed;right:16px;bottom:16px;z-index:9999;display:flex;gap:6px;align-items:center;background:#2962ff;color:#fff;border-radius:10px;padding:8px 12px;box-shadow:0 4px 16px rgba(0,0,0,.35);font:600 14px sans-serif";
-  box.innerHTML = '<span style="cursor:pointer">Install StockWise app</span><span title="Hide" style="cursor:pointer;opacity:.8;padding-left:6px">&#10005;</span>';
-  box.firstChild.addEventListener("click", async () => {
-    installEvent.prompt();
-    await installEvent.userChoice;
-    box.remove();
-  });
-  box.lastChild.addEventListener("click", () => {
-    try {
-      localStorage.setItem("installDismissed", "1");
-    } catch {
-      /* storage can be blocked */
-    }
-    box.remove();
-  });
-  document.body.appendChild(box);
+  showInstallRow();
 });
 window.addEventListener("appinstalled", () => {
-  const b = document.getElementById("installBtn");
-  if (b) b.remove();
+  installEvent = null;
+  showInstallRow();
 });
+
+// A row under the notification setting on the Settings page
+function showInstallRow() {
+  const pushBtn = document.getElementById("pushBtn");
+  if (!pushBtn) return; // not the Settings page
+  let row = document.getElementById("installRow");
+  if (!row) {
+    const host = pushBtn.parentElement;
+    row = document.createElement("div");
+    row.id = "installRow";
+    row.className = host.className;
+    row.style.marginTop = "12px";
+    row.innerHTML =
+      '<div><b>Install StockWise as an app</b><br><small id="installStatus" style="opacity:.75"></small></div>' +
+      '<button type="button" id="installNow" class="' + pushBtn.className + '"></button>';
+    host.insertAdjacentElement("afterend", row);
+    document.getElementById("installNow").addEventListener("click", async () => {
+      if (!installEvent) return;
+      installEvent.prompt();
+      await installEvent.userChoice;
+      installEvent = null;
+      showInstallRow();
+    });
+  }
+  const status = document.getElementById("installStatus");
+  const btn = document.getElementById("installNow");
+  if (isInstalled()) {
+    status.textContent = "Already installed on this device";
+    btn.hidden = true;
+  } else if (installEvent) {
+    status.textContent = "Open it from your home screen, full screen, like an app";
+    btn.textContent = "Install";
+    btn.hidden = false;
+  } else if (isIphone()) {
+    status.textContent = "On iPhone: tap Share, then Add to Home Screen";
+    btn.hidden = true;
+  } else {
+    status.textContent = "Use your browser menu (three dots) and choose Install app";
+    btn.hidden = true;
+  }
+}
+document.addEventListener("DOMContentLoaded", showInstallRow);
 `
 );
 console.log("pwa.js: created");
