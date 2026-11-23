@@ -46,9 +46,23 @@ function stockCell(s) {
   </td>`;
 }
 
+// About 50 big companies from the server (gainers, losers and most active use them when they have loaded)
+let screenerPool = null;
+async function loadScreener() {
+  try {
+    const list = await api("/stocks/screener");
+    if (Array.isArray(list) && list.length > 10) {
+      screenerPool = list;
+      renderTables();
+    }
+  } catch (err) {
+    /* the built-in stocks are used instead */
+  }
+}
+
 function renderTables() {
   // Gainers, losers and most active use only the built-in stocks, not ones you searched for
-  const pool = stocks.filter((s) => !s.extra);
+  const pool = screenerPool || stocks.filter((s) => !s.extra);
   const gainers = pool.filter((s) => s.percent > 0).sort((a, b) => b.percent - a.percent).slice(0, 5);
   const losers = pool.filter((s) => s.percent < 0).sort((a, b) => a.percent - b.percent).slice(0, 5);
   const active = [...pool].sort((a, b) => b.volume - a.volume).slice(0, 5);
@@ -64,6 +78,58 @@ function renderTables() {
   document.getElementById("activeBody").innerHTML = active
     .map((s) => `<tr>${stockCell(s)}<td>${fmtPrice(s.price)}</td><td>${fmtVolume(s.volume)}</td></tr>`)
     .join("");
+  renderSectors();
+}
+
+// ---------- Sectors: the average move of each group of companies ----------
+const SECTORS = {
+  "IT": ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM"],
+  "Banks": ["HDFCBANK", "ICICIBANK", "SBIN", "KOTAKBANK", "AXISBANK", "INDUSINDBK"],
+  "Financials": ["BAJFINANCE", "BAJAJFINSV", "SBILIFE", "HDFCLIFE", "SHRIRAMFIN"],
+  "Auto": ["MARUTI", "M&M", "BAJAJ-AUTO", "TATAMOTORS", "EICHERMOT", "HEROMOTOCO"],
+  "Energy & Power": ["RELIANCE", "ONGC", "NTPC", "POWERGRID", "COALINDIA"],
+  "Metals": ["TATASTEEL", "JSWSTEEL", "HINDALCO"],
+  "Pharma & Health": ["SUNPHARMA", "CIPLA", "DRREDDY", "APOLLOHOSP", "DIVISLAB"],
+  "FMCG": ["ITC", "HINDUNILVR", "NESTLEIND", "BRITANNIA", "TATACONSUM"],
+  "Infra & Industrials": ["LT", "ADANIENT", "ADANIPORTS", "ULTRACEMCO", "GRASIM", "BEL"],
+  "Consumer & Telecom": ["BHARTIARTL", "TITAN", "ASIANPAINT", "TRENT"],
+};
+
+function renderSectors() {
+  if (!screenerPool) return; // needs the bigger list of companies
+  let box = document.getElementById("sectorBox");
+  if (!box) {
+    document.getElementById("indicesGrid").insertAdjacentHTML("afterend", '<div id="sectorBox" class="card"></div>');
+    box = document.getElementById("sectorBox");
+  }
+
+  const rows = Object.entries(SECTORS)
+    .map(([name, syms]) => {
+      const list = screenerPool.filter((q) => syms.includes(q.symbol));
+      if (!list.length) return null;
+      const avg = list.reduce((sum, q) => sum + q.percent, 0) / list.length;
+      const top = [...list].sort((a, b) => b.percent - a.percent)[0];
+      return { name, avg, count: list.length, top };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.avg - a.avg);
+  if (!rows.length) return;
+
+  const max = Math.max(...rows.map((r) => Math.abs(r.avg)), 0.01);
+  box.innerHTML =
+    '<b>Sectors today</b> <small>(average change of the big companies in each)</small>' +
+    rows
+      .map(
+        (r) => `<div style="display:flex;align-items:center;gap:10px;margin:8px 0;font-size:14px">
+          <span style="width:140px;flex:none">${escHtml(r.name)}</span>
+          <span style="flex:1;height:10px;background:rgba(128,128,128,0.15);border-radius:5px;overflow:hidden">
+            <span style="display:block;height:100%;width:${(Math.abs(r.avg) / max) * 100}%;background:${r.avg >= 0 ? "#16c784" : "#ea3943"}"></span>
+          </span>
+          <b class="${dirClass(r.avg)}" style="width:64px;text-align:right;flex:none">${sign(r.avg)}${r.avg.toFixed(2)}%</b>
+          <small style="width:120px;flex:none;white-space:nowrap"><a class="sym" href="stock.html?symbol=${encodeURIComponent(r.top.symbol)}">${escHtml(r.top.symbol)}</a> ${sign(r.top.percent)}${r.top.percent.toFixed(1)}%</small>
+        </div>`
+      )
+      .join("");
 }
 
 // ---------- Market status (IST: Mon-Fri, 9:15 AM - 3:30 PM) ----------
@@ -188,6 +254,10 @@ renderIndices();
 renderTables();
 renderWatchlist();
 updateMarketStatus();
+loadScreener();
+setInterval(() => {
+  if (!document.hidden) loadScreener();
+}, 30 * 1000);
 setInterval(updateMarketStatus, 60 * 1000); // re-check every minute
 
 // ---------- Live updates ----------
