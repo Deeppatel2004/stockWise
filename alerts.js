@@ -15,6 +15,7 @@ async function refreshPrices() {
   getWatchlist().forEach((sym) => wanted.add(sym));
   getHoldings().forEach((h) => wanted.add(h.symbol));
   getAlerts().forEach((a) => wanted.add(a.symbol));
+  (userData.groups || []).forEach((g) => g.symbols.forEach((sym) => wanted.add(sym)));
 
   const data = await api("/stocks/quotes?symbols=" + encodeURIComponent([...wanted].join(",")));
 
