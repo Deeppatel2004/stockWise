@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockWise - Alert history</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#2962ff">
+  <script src="pwa.js" defer></script>
+</head>
+<body>
+
+  <header class="header">
+    <a class="logo" href="index.html">📈 Stock<span>Wise</span></a>
+    <div class="header-right">
+      <a class="nav-link" href="index.html">Dashboard</a>
+      <a class="nav-link" href="portfolio.html">Portfolio</a>
+
+      <div class="bell-wrap">
+        <button id="bellBtn" class="icon-btn" aria-label="Notifications">
+          🔔<span id="bellCount" class="bell-count" hidden>0</span>
+        </button>
+        <div id="bellPanel" class="bell-panel" hidden>
+          <button id="enablePush" class="btn" hidden>Enable browser alerts</button>
+          <div class="bell-head">
+            <b>Notifications</b>
+            <span>
+              <button id="markRead" class="link-btn">Mark all read</button>
+              <button id="clearAll" class="link-btn">Clear</button>
+            </span>
+          </div>
+          <ul id="bellList"></ul>
+        </div>
+      </div>
+      <div id="toastBox" class="toast-box"></div>
+
+      <button id="logoutBtn" class="btn">Logout</button>
+      <button id="themeToggle" class="icon-btn" aria-label="Toggle dark and light mode">🌙</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <h2>Alert history</h2>
+    <p class="settings-intro" id="historyCount"></p>
+    <div class="card" id="historyList"></div>
+  </main>
+
+  <footer class="footer">Data may be delayed. Not financial advice.</footer>
+
+  <script src="data.js"></script>
+  <script src="api.js"></script>
+  <script src="alerts.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

@@ -31,7 +31,7 @@ async function runAlertCheck() {
       if (!hit) continue;
 
       // Claim the alert first. If another check already claimed it, skip (no duplicates)
-      const claimed = await Alert.findOneAndUpdate({ _id: a._id, triggered: false }, { triggered: true });
+      const claimed = await Alert.findOneAndUpdate({ _id: a._id, triggered: false }, { triggered: true, triggeredAt: new Date(), triggeredPrice: price });
       if (!claimed) continue;
 
       const title = `${a.symbol} price alert`;
