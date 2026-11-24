@@ -3,6 +3,7 @@ const { protect } = require("../middleware/auth");
 const { getQuotes } = require("../services/stockService");
 const {
   isValidSymbol,
+  getNews,
   isValidRange,
   isBase,
   getDetails,
@@ -55,6 +56,26 @@ router.get("/screener", async (req, res) => {
     res.json(data.length ? data : screenerCache.data);
   } catch (err) {
     res.json(screenerCache.data); // empty: the dashboard keeps its own list
+  }
+});
+
+// GET /api/stocks/market-news  ->  latest market headlines
+router.get("/market-news", async (req, res) => {
+  try {
+    res.json(await getNews(null));
+  } catch (err) {
+    res.status(err.status || 503).json({ message: err.message });
+  }
+});
+
+// GET /api/stocks/TCS/news  ->  latest headlines about one stock
+router.get("/:symbol/news", async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase();
+  if (!isValidSymbol(symbol)) return res.status(400).json({ message: "Invalid stock symbol" });
+  try {
+    res.json(await getNews(symbol));
+  } catch (err) {
+    res.status(err.status || 503).json({ message: err.message });
   }
 });
 
