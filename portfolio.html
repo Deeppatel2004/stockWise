@@ -54,7 +54,8 @@
 
     <div class="card">
       <h2>Add Holding</h2>
-      <form id="holdingForm" class="inline-form">
+      <button class="btn" type="button" id="addHoldingBtn" data-trade="buy">+ Add holding</button>
+      <form id="holdingForm" class="inline-form" style="display:none">
                 <input type="text" id="hSymbol" list="symbolOptions" placeholder="Stock symbol (e.g. TCS)" autocomplete="off" required />
         <datalist id="symbolOptions"></datalist>
         <input type="number" id="hPrice" step="0.01" min="0.01" placeholder="Buy price (₹)" required />
@@ -86,5 +87,6 @@
   <script src="api.js"></script>
   <script src="alerts.js"></script>
   <script src="portfolio.js"></script>
+  <script src="buy.js"></script>
 </body>
 </html>

@@ -125,7 +125,7 @@ function renderPortfolio() {
         <td>${fmtPrice(r.current)}</td>
         <td class="${dirClass(r.pl)}">${signedMoney(r.pl)}</td>
         <td class="${dirClass(r.ret)}">${sign(r.ret)}${r.ret.toFixed(2)}%</td>
-        <td><button class="link-btn" data-remove="${r._id}">Remove</button></td>
+        <td style="white-space:nowrap"><button class="link-btn" data-trade="buy" data-sym="${escHtml(r.symbol)}">Buy</button> <button class="link-btn" data-trade="sell" data-sym="${escHtml(r.symbol)}">Sell</button> <button class="link-btn" data-remove="${r._id}">Remove</button></td>
       </tr>`
     )
     .join("");
