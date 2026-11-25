@@ -17,7 +17,7 @@ function newsHtml(items) {
     .map(
       (n) => `<div class="setting-row">
         <div>
-          <b><a href="${escHtml(n.link)}" target="_blank" rel="noopener noreferrer">${escHtml(n.title)}</a></b>
+          <b><a class="news-link" href="${escHtml(n.link)}" target="_blank" rel="noopener noreferrer">${escHtml(n.title)}</a></b>
           <span>${escHtml(n.publisher)}${n.publisher && n.time ? " · " : ""}${escHtml(timeAgo(n.time))}</span>
         </div>
       </div>`
@@ -35,6 +35,11 @@ async function loadNews(box, path) {
 }
 
 const params = new URLSearchParams(location.search);
+
+// Headlines use the normal text colour; they turn blue and underlined when you point at them
+const newsStyle = document.createElement("style");
+newsStyle.textContent = ".news-link{color:inherit;text-decoration:none}.news-link:hover{color:#4c8dff;text-decoration:underline}";
+document.head.appendChild(newsStyle);
 
 if (document.getElementById("newsPage")) {
   // ----- The News page -----
