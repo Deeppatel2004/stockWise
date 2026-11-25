@@ -72,7 +72,7 @@ if (document.getElementById("newsPage")) {
     card.className = "card";
     card.innerHTML =
       '<h2>Latest news</h2><div id="stockNews"></div>' +
-      '<small>Headlines come from Yahoo Finance and open the publisher\'s website. <a href="news.html?symbol=' + encodeURIComponent(sym) + '">More news</a></small>';
+      '<small>Headlines come from Yahoo Finance and Google News and open the publisher\'s website. <a href="news.html?symbol=' + encodeURIComponent(sym) + '">More news</a></small>';
     (document.querySelector("main") || document.body).appendChild(card);
     loadNews(document.getElementById("stockNews"), "/stocks/" + encodeURIComponent(sym) + "/news");
   }

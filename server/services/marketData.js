@@ -267,42 +267,91 @@ const INDEX_YAHOO = { NIFTY50: "^NSEI", SENSEX: "^BSESN", BANKNIFTY: "^NSEBANK" 
 const isIndexId = (id) => Object.prototype.hasOwnProperty.call(INDEX_YAHOO, id);
 const getIndexHistory = (id, range) => getHistory(INDEX_YAHOO[id], range, INDEX_YAHOO[id]);
 
-// ---------- News headlines (from Yahoo Finance) ----------
+// ---------- News headlines (Yahoo Finance and Google News feeds) ----------
 const NEWS_TTL = 10 * 60 * 1000;
 const newsCache = new Map();
 
-async function getNews(symbol) {
-  const query = symbol ? yahooFor(symbol) : "Sensex Nifty India stock market";
-  const hit = newsCache.get(query);
-  if (hit && Date.now() - hit.at < NEWS_TTL) return hit.data;
+const decodeXml = (s) =>
+  s
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .trim();
 
-  const url =
-    "https://query2.finance.yahoo.com/v1/finance/search?q=" + encodeURIComponent(query) + "&quotesCount=0&listsCount=0&newsCount=10";
+function parseRss(xml, defaultPublisher) {
+  const items = [];
+  for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    const block = m[1];
+    const pick = (tag) => {
+      const r = block.match(new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)</" + tag + ">"));
+      return r ? decodeXml(r[1]) : "";
+    };
+    let title = pick("title");
+    const publisher = pick("source") || defaultPublisher;
+    if (publisher && title.endsWith(" - " + publisher)) title = title.slice(0, -(publisher.length + 3));
+    const when = new Date(pick("pubDate"));
+    items.push({
+      title: title.slice(0, 300),
+      publisher: publisher.slice(0, 80),
+      link: pick("link"),
+      time: isNaN(when) ? null : when.toISOString(),
+    });
+  }
+  return items.filter((n) => n.title && /^https?:\/\//.test(n.link));
+}
+
+async function fetchFeed(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 7000);
   try {
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; StockWise)" }, signal: controller.signal });
     if (!res.ok) throw new Error("status " + res.status);
-    const json = await res.json();
-    const data = (json.news || [])
-      .filter((n) => n && n.title && /^https?:\/\//.test(n.link || ""))
-      .slice(0, 10)
-      .map((n) => ({
-        title: String(n.title).slice(0, 300),
-        publisher: String(n.publisher || "").slice(0, 80),
-        link: n.link,
-        time: n.providerPublishTime ? new Date(n.providerPublishTime * 1000).toISOString() : null,
-      }));
-    newsCache.set(query, { at: Date.now(), data });
-    return data;
-  } catch (err) {
-    if (hit) return hit.data; // an older list is better than an error
-    const e = new Error("News is not available right now");
-    e.status = 503;
-    throw e;
+    return parseRss(await res.text(), url.includes("yahoo.com") ? "Yahoo Finance" : "");
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function getNews(symbol) {
+  const key = symbol || "market";
+  const hit = newsCache.get(key);
+  if (hit && Date.now() - hit.at < NEWS_TTL) return hit.data;
+
+  const google = (q) => "https://news.google.com/rss/search?q=" + encodeURIComponent(q) + "&hl=en-IN&gl=IN&ceid=IN:en";
+  const yahoo = (s) => "https://feeds.finance.yahoo.com/rss/2.0/headline?s=" + encodeURIComponent(s) + "&region=IN&lang=en-IN";
+  const base = symbol ? symbol.replace(/-BO$/, "") : "";
+  const sources = symbol
+    ? [yahoo(yahooFor(symbol)), google(base + " share price")]
+    : [google("Sensex Nifty stock market India"), yahoo("^NSEI")];
+
+  let data = [];
+  let failures = 0;
+  for (const url of sources) {
+    try {
+      data = await fetchFeed(url);
+      if (data.length) break;
+    } catch (err) {
+      failures++;
+    }
+  }
+
+  if (data.length) {
+    data = data
+      .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0))
+      .slice(0, 10);
+    newsCache.set(key, { at: Date.now(), data });
+    return data;
+  }
+  if (hit) return hit.data; // an older list is better than nothing
+  if (failures === sources.length) {
+    const e = new Error("News is not available right now");
+    e.status = 503;
+    throw e;
+  }
+  return []; // the feeds answered, but there is no news
 }
 
 module.exports = {
