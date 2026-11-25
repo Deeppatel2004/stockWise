@@ -1,3 +1,4 @@
+(function () {
 // News headlines: a card on each stock page, and the News page
 const escHtml = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -77,3 +78,4 @@ if (document.getElementById("newsPage")) {
     loadNews(document.getElementById("stockNews"), "/stocks/" + encodeURIComponent(sym) + "/news");
   }
 }
+})();
