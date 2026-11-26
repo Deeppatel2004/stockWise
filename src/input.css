@@ -1,0 +1,247 @@
+/* StockWise styles. Edit THIS file, then run:  npx tailwindcss@3.4.17 -c tailwind.config.js -i src/input.css -o style.css */
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- Theme variables ---------- */
+:root[data-theme="dark"] { --bg:#0b1220; --card:#131c2e; --text:#e6edf7; --muted:#8b9ab3; --border:#22304a; --accent:#4f8cff; }
+:root[data-theme="light"] { --bg:#f3f6fb; --card:#ffffff; --text:#16202f; --muted:#5b6b82; --border:#dde4ef; --accent:#2563eb; }
+:root { --green:#16c784; --red:#ea3943; }
+
+/* ---------- Base ---------- */
+* { @apply box-border m-0 p-0; }
+[hidden] { display: none !important; }
+body { @apply font-sans bg-bg text-ink leading-normal min-w-0; }
+button, input, select { font: inherit; }
+button, a, input, select { -webkit-tap-highlight-color: transparent; }
+img, canvas { @apply max-w-full; }
+h2 { @apply text-[1.1rem] mb-3; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Components ---------- */
+  .up { @apply text-up; }
+  .down { @apply text-down; }
+
+  /* Header */
+  .header { @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-3 bg-card border-b border-line sticky top-0 z-10; }
+  .logo { @apply text-[1.3rem] font-bold whitespace-nowrap; }
+  .logo span { @apply text-accent; }
+  a.logo { @apply text-inherit no-underline; }
+  .header-right { @apply flex flex-wrap items-center gap-3; }
+  .nav-link { @apply text-muted no-underline text-[0.9rem] hover:text-accent; }
+  .back-link { @apply text-accent no-underline text-[0.9rem]; }
+
+  .search-box { @apply relative flex-1 max-w-[420px]; }
+  .search-box input { @apply w-full px-3.5 py-2.5 rounded-lg border border-line bg-bg text-ink text-[0.95rem]; }
+  .search-results { @apply absolute top-full inset-x-0 mt-1 list-none bg-card border border-line rounded-lg overflow-hidden z-30 max-h-[70vh] overflow-y-auto; }
+  .search-results li { @apply px-3.5 py-2.5 cursor-pointer flex justify-between gap-3 hover:bg-bg; }
+
+  .market-status { @apply text-[0.8rem] px-2.5 py-1 rounded-full border border-line whitespace-nowrap; }
+  .market-status.open { @apply text-up border-up; }
+  .market-status.closed { @apply text-down border-down; }
+
+  .icon-btn { @apply bg-bg border border-line text-ink rounded-lg px-2.5 py-[7px] cursor-pointer text-base; }
+
+  /* Layout */
+  .container { @apply max-w-[1200px] mx-auto p-6; }
+  .indices-grid { @apply grid gap-4 mb-7; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .index-card, .card { @apply bg-card border border-line rounded-xl p-4; }
+  .index-card .name { @apply text-muted text-[0.85rem]; }
+  .index-card .value { @apply text-[1.6rem] font-bold my-1; }
+  .index-link { @apply block text-inherit no-underline cursor-pointer hover:brightness-110; }
+  .tables-grid { @apply grid gap-4; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+  table { @apply w-full border-collapse text-[0.9rem]; }
+  th { @apply text-left text-muted font-medium px-1 py-1.5; }
+  td { @apply px-1 py-[9px] border-t border-line; }
+  td .sym, a.sym { @apply font-semibold; }
+  a.sym { @apply text-ink no-underline hover:text-accent; }
+  td .co { @apply block text-muted text-xs; }
+  .table-scroll { @apply overflow-x-auto; }
+  .table-scroll table { @apply min-w-[720px]; }
+
+  .footer { @apply text-center text-muted text-[0.8rem] p-6; }
+  .empty { @apply text-muted text-[0.9rem] py-2; }
+  .watchlist { @apply mb-7; }
+  .about p { @apply text-muted; }
+
+  /* Buttons */
+  .btn { @apply bg-card text-ink border border-line rounded-lg px-4 py-[9px] cursor-pointer text-[0.9rem] hover:border-accent; }
+  .btn.active { @apply bg-accent border-accent text-white; }
+  .link-btn { @apply bg-transparent border-0 text-muted cursor-pointer text-[0.8rem] hover:text-down; }
+  .tf-buttons { @apply flex gap-1.5 mb-3 flex-wrap; }
+  .tf-btn { @apply bg-bg text-muted border border-line rounded-md px-3 py-[5px] cursor-pointer text-[0.85rem]; }
+  .tf-btn.active { @apply bg-accent border-accent text-white; }
+  .chart-mode { @apply mb-2.5; }
+
+  /* Stock page */
+  .stock-head { @apply flex justify-between items-start gap-4 mb-5 flex-wrap; }
+  .stock-head h1 { @apply text-2xl; }
+  .stock-head h1 small { @apply text-muted text-[0.9rem] font-medium; }
+  .price-row { @apply flex items-baseline gap-3 mt-1; }
+  .price-big { @apply text-[2rem] font-bold; }
+  .stats-grid { @apply grid gap-3 my-4; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .stat { @apply bg-card border border-line rounded-[10px] px-3.5 py-3 flex flex-col gap-0.5; }
+  .stat span { @apply text-muted text-[0.8rem]; }
+  .chart-wrap { @apply relative h-[400px]; }
+  #priceChart { @apply absolute inset-0; }
+  .chart-legend { @apply absolute top-1.5 left-2 z-[3] flex flex-wrap gap-x-3 gap-y-1 text-[0.78rem] text-muted pointer-events-none; max-width: calc(100% - 80px); }
+  .chart-legend b { @apply font-semibold text-ink; }
+  .chart-legend .up b, .chart-legend .down b { color: inherit; }
+  .chart-note { @apply text-muted text-[0.8rem] mb-1.5; min-height: 1.2em; }
+  .tv-box { @apply h-[560px]; }
+
+  /* Bell, toasts */
+  .bell-wrap { @apply relative; }
+  .bell-count { @apply absolute -top-1.5 -right-1.5 bg-down text-white text-[0.65rem] min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1; }
+  .bell-panel { @apply absolute right-0 w-80 max-w-[90vw] bg-card border border-line rounded-[10px] shadow-[0_10px_30px_rgba(0,0,0,0.35)] z-20 p-2.5; top: calc(100% + 8px); }
+  .bell-panel .btn { @apply w-full mb-2 text-[0.8rem]; }
+  .bell-head { @apply flex justify-between items-center mb-2; }
+  .bell-panel ul { @apply list-none max-h-[300px] overflow-y-auto; }
+  .bell-panel li { @apply px-1.5 py-2 border-t border-line flex flex-col gap-0.5 text-[0.85rem]; }
+  .bell-panel li.unread { @apply border-l-[3px] border-l-accent pl-2; }
+  .bell-panel li span { @apply text-muted; }
+  .bell-panel li small { @apply text-muted text-[0.7rem]; }
+  .toast-box { @apply fixed right-4 bottom-4 flex flex-col gap-2 z-50; }
+  .toast { @apply bg-card border border-accent border-l-4 rounded-lg px-3.5 py-2.5 flex flex-col text-[0.85rem] max-w-[300px] shadow-[0_8px_24px_rgba(0,0,0,0.35)]; }
+  .toast span { @apply text-muted; }
+
+  /* Forms and lists */
+  .inline-form { @apply flex gap-2.5 flex-wrap; }
+  .inline-form select, .inline-form input { @apply flex-1 min-w-[140px] px-3 py-[9px] rounded-lg border border-line bg-bg text-ink text-[0.9rem]; }
+  .inline-form .btn { @apply flex-none; }
+  .alert-card { @apply mt-4; }
+  .alert-list { @apply list-none mt-3; }
+  .alert-list li { @apply flex justify-between items-center py-2 border-t border-line text-[0.9rem]; }
+  .badge-done { @apply text-up text-xs ml-2; }
+
+  /* Login and password pages */
+  .auth-body { @apply min-h-screen flex flex-col items-center justify-center p-4; }
+  .auth-card { @apply w-full max-w-[380px]; }
+  .auth-card .logo { @apply text-center mb-4 text-2xl; }
+  .auth-card form { @apply flex flex-col gap-2.5 mt-2; }
+  .auth-card input { @apply px-3 py-2.5 rounded-lg border border-line bg-bg text-ink text-[0.95rem]; }
+  .auth-card .btn { @apply w-full; }
+  .auth-error { @apply text-down text-[0.85rem]; }
+  .auth-theme { @apply fixed top-4 right-4; }
+  .auth-title { @apply text-center text-[1.1rem] mb-1; }
+  .auth-note { @apply text-muted text-[0.9rem] text-center mt-1 mb-2; }
+  .auth-ok { @apply text-up text-[0.95rem] text-center mt-2; }
+  .auth-link { @apply text-center mt-3.5 text-[0.9rem]; }
+  .auth-link a { @apply text-muted underline hover:text-ink; }
+
+  /* Settings */
+  .settings-intro { @apply text-muted mb-4; }
+  .setting-row { @apply flex justify-between items-center gap-4 py-4 border-t border-line; }
+  .setting-row.first { @apply border-t-0 pt-0; }
+  .setting-row > div { @apply flex flex-col gap-0.5; }
+  .setting-row span { @apply text-muted text-[0.85rem]; }
+  .setting-row input[type="checkbox"] { @apply w-[22px] h-[22px] cursor-pointer flex-none; accent-color: var(--accent); }
+  .setting-row .warn { @apply text-down; }
+  .test-msg.ok { @apply text-up; }
+  .test-msg.bad { @apply text-down; }
+
+/* ---------- Tablets and phones ---------- */
+@media (max-width: 700px) {
+  .header { @apply grid gap-x-2.5 gap-y-2 px-3 py-2.5; grid-template-columns: minmax(0, 1fr) auto; }
+  .header > .logo { @apply min-w-0 overflow-hidden text-ellipsis; }
+  .header-right { @apply w-full justify-start flex-wrap gap-2; grid-column: 1 / -1; }
+  .header-right .nav-link, .header-right .back-link { @apply flex-none; }
+  .search-box { @apply order-3 basis-full w-full max-w-none; grid-column: 1 / -1; }
+  .market-status { @apply mr-auto; }
+  .container { @apply w-full pt-3.5 px-3 pb-5; }
+  .indices-grid { @apply gap-2.5; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tables-grid { grid-template-columns: 1fr; }
+  .card, .index-card { @apply min-w-0; }
+  .table-scroll { @apply -mx-4 px-4; }
+  .table-scroll table { @apply min-w-[650px]; }
+  .toast-box { @apply left-3 right-3 bottom-3; }
+  .toast { @apply max-w-none; }
+  .bell-panel { @apply fixed left-3 right-3 top-16 w-auto max-w-none; }
+  .chart-wrap { @apply h-[320px]; }
+  .price-big { @apply text-[1.6rem]; }
+  .tv-box { @apply h-[480px]; }
+}
+
+@media (max-width: 480px) {
+  .logo { @apply text-[1.05rem]; }
+  .icon-btn, .btn { @apply min-h-[42px]; }
+  .header .icon-btn { @apply px-[11px] py-2; }
+  .indices-grid { grid-template-columns: 1fr; }
+  .index-card { @apply px-3.5 py-[13px]; }
+  .stock-head { @apply items-stretch; }
+  .stock-head > div { @apply w-full; }
+  .stock-head h1 { @apply text-[1.25rem]; }
+  .stock-head #watchBtn { @apply w-full; }
+  .price-row { @apply items-start flex-wrap; }
+  .price-big { @apply text-[1.45rem]; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tf-buttons { @apply grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tf-btn { @apply px-1 py-2; }
+  .chart-wrap, #priceChart { @apply min-w-0; }
+  .chart-wrap { @apply h-[300px]; }
+  .inline-form { @apply grid; grid-template-columns: 1fr; }
+  .inline-form select, .inline-form input, .inline-form .btn { @apply w-full min-w-0; }
+  .setting-row { @apply items-start; }
+  .setting-row > div { @apply min-w-0; }
+  .setting-row .btn { @apply flex-none; }
+  .alert-list li { @apply gap-2; }
+  .auth-body { @apply justify-start pt-[72px]; }
+  .auth-card { @apply max-w-full; }
+  .auth-theme { @apply top-3 right-3; }
+  .tv-box { @apply h-[420px]; }
+}
+
+/* ---------- Watchlist: "Move to" list, Remove button, add box, group buttons ---------- */
+select[data-move] {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b9ab3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 9px center;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 26px 6px 10px;
+  font-size: 0.8rem;
+  max-width: 130px !important;
+  cursor: pointer;
+}
+select[data-move]:hover, select[data-move]:focus { border-color: var(--accent); outline: none; }
+select[data-move] option { background: var(--card); color: var(--text); }
+
+button[data-remove] {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  color: var(--red);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+button[data-remove]:hover { background: var(--red); border-color: var(--red); color: #fff; }
+
+#watchlistBody td:last-child { white-space: nowrap; text-align: right; }
+#watchlistBody td:last-child > * { vertical-align: middle; margin-left: 6px; }
+
+#wlTools { gap: 8px; }
+#wlAdd {
+  padding: 8px 12px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-size: 0.9rem;
+  min-width: 200px;
+}
+#wlAdd:focus { border-color: var(--accent) !important; outline: none; }
+#wlTools .link-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+}
+#wlTools .link-btn:hover { border-color: var(--red); }
+#wlTools [data-rename]:hover { color: var(--accent); border-color: var(--accent); }
+
+@media (max-width: 480px) {
+  select[data-move], button[data-remove] { min-height: 36px; }
+  #wlAdd { flex: 1; min-width: 0; }
+}
