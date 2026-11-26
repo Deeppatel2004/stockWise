@@ -19,7 +19,17 @@ function renderTicker() {
     .join("");
 
   // Repeat twice so the scrolling loop looks seamless
-  document.getElementById("tickerTrack").innerHTML = html;
+  const track = document.getElementById("tickerTrack");
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  const fresh = [...tmp.children];
+  if (track.dataset.n === String(fresh.length) && track.children.length === fresh.length * 2) {
+    // same items: only update the numbers, so the scrolling never restarts
+    [...track.children].forEach((el, i) => { el.innerHTML = fresh[i % fresh.length].innerHTML; });
+  } else {
+    track.innerHTML = html + html;
+    track.dataset.n = String(fresh.length);
+  }
 }
 
 // ---------- Index cards (click one to open its chart) ----------
