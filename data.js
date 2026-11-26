@@ -62,12 +62,12 @@ const themeBtn = document.getElementById("themeToggle");
 
 function applyTheme(theme) {
   root.setAttribute("data-theme", theme);
-  themeBtn.textContent = theme === "dark" ? "🌙" : "☀️";
+  if (themeBtn) themeBtn.textContent = theme === "dark" ? "🌙" : "☀️";
   localStorage.setItem("theme", theme);
   window.dispatchEvent(new Event("themechange")); // lets the chart redraw
 }
 
-themeBtn.addEventListener("click", () => {
+if (themeBtn) themeBtn.addEventListener("click", () => {
   applyTheme(root.getAttribute("data-theme") === "dark" ? "light" : "dark");
 });
 

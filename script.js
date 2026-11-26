@@ -19,7 +19,7 @@ function renderTicker() {
     .join("");
 
   // Repeat twice so the scrolling loop looks seamless
-  document.getElementById("tickerTrack").innerHTML = html + html;
+  document.getElementById("tickerTrack").innerHTML = html;
 }
 
 // ---------- Index cards (click one to open its chart) ----------
