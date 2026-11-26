@@ -245,3 +245,43 @@ button[data-remove]:hover { background: var(--red); border-color: var(--red); co
   select[data-move], button[data-remove] { min-height: 36px; }
   #wlAdd { flex: 1; min-width: 0; }
 }
+
+/* ---------- Phone layout: portfolio and watchlist rows become cards ---------- */
+.link-btn[data-trade] { border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 0.8rem; }
+.link-btn[data-trade="buy"] { color: var(--accent); }
+.link-btn[data-trade="buy"]:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.link-btn[data-trade="sell"] { color: var(--red); }
+.link-btn[data-trade="sell"]:hover { background: var(--red); border-color: var(--red); color: #fff; }
+
+@media (max-width: 700px) {
+  html, body { overflow-x: hidden; }
+  .container { overflow-x: hidden; }
+
+  /* Holdings */
+  #holdingsTable, #watchlistTable { min-width: 0 !important; width: 100%; display: block; }
+  #holdingsTable thead, #watchlistTable thead { display: none; }
+  #holdingsTable tbody, #watchlistTable tbody { display: block; }
+  .table-scroll:has(#holdingsTable), .table-scroll:has(#watchlistTable) { margin: 0; padding: 0; overflow-x: visible; }
+
+  #holdingsBody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; padding: 14px 0; border-top: 1px solid var(--border); }
+  #holdingsBody td { border: 0; padding: 0; white-space: nowrap; }
+  #holdingsBody td::before { display: block; color: var(--muted); font-size: 0.7rem; }
+  #holdingsBody td:nth-child(1) { grid-column: 1 / -1; white-space: normal; }
+  #holdingsBody td:nth-child(2)::before { content: "Qty"; }
+  #holdingsBody td:nth-child(3)::before { content: "Avg. cost"; }
+  #holdingsBody td:nth-child(4)::before { content: "LTP"; }
+  #holdingsBody td:nth-child(5)::before { content: "Invested"; }
+  #holdingsBody td:nth-child(6)::before { content: "Current"; }
+  #holdingsBody td:nth-child(7)::before { content: "P/L"; }
+  #holdingsBody td:nth-child(8)::before { content: "Return"; }
+  #holdingsBody td:nth-child(9) { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+  #holdingsBody td:nth-child(9) .link-btn { padding: 8px 16px; min-height: 36px; }
+
+  /* Watchlist: name and price on top, Move to / Remove underneath */
+  #watchlistBody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px 14px; padding: 12px 0; border-top: 1px solid var(--border); }
+  #watchlistBody td { border: 0; padding: 0; }
+  #watchlistBody td:last-child { grid-column: 1 / -1; display: flex; gap: 8px; text-align: left; white-space: normal; }
+  #watchlistBody td:last-child > * { margin: 0; }
+  #watchlistBody select[data-move] { flex: 1; max-width: none !important; min-height: 38px; }
+  #watchlistBody button[data-remove] { min-height: 38px; padding: 6px 16px; }
+}
