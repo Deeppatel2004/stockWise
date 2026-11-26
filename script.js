@@ -4,6 +4,7 @@ const escHtml = (s) =>
 
 // ---------- Ticker bar ----------
 function renderTicker() {
+  if (!document.getElementById("tickerTrack")) return; // no ticker bar
   const items = [
     ...indices.map((i) => ({ label: i.name, price: i.value, percent: i.percent })),
     ...stocks.filter((s) => !s.extra).map((s) => ({ label: s.symbol, price: s.price, percent: s.percent })),
