@@ -350,6 +350,26 @@ function themeOptions() {
   };
 }
 
+// ---------- Dates on the chart (legend, hover label and the bottom axis) ----------
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function fmtBarDate(time) {
+  if (typeof time === "number") {
+    const d = new Date(time * 1000); // clock times were already shifted to IST, so read them as UTC
+    let h = d.getUTCHours();
+    const ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()] + " " + d.getUTCFullYear() + ", " + h + ":" + String(d.getUTCMinutes()).padStart(2, "0") + " " + ap;
+  }
+  return time.day + " " + MONTHS[time.month - 1] + " " + time.year;
+}
+function tickLabel(time, type) {
+  const d = typeof time === "number" ? new Date(time * 1000) : new Date(Date.UTC(time.year, time.month - 1, time.day));
+  if (type === 0) return String(d.getUTCFullYear());
+  if (type === 1) return MONTHS[d.getUTCMonth()];
+  if (type === 2) return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()];
+  return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0");
+}
+
 // The line at the top of the chart: Open, High, Low, Close and the change
 function showLegend(bar) {
   const legend = document.getElementById("chartLegend");
@@ -362,6 +382,7 @@ function showLegend(bar) {
   const cls = dirClass(change);
 
   legend.innerHTML =
+    `<span><b>${fmtBarDate(bar.time)}</b></span>` +
     `<span>O <b>${fmtPrice(bar.open)}</b></span>` +
     `<span>H <b>${fmtPrice(bar.high)}</b></span>` +
     `<span>L <b>${fmtPrice(bar.low)}</b></span>` +
@@ -378,6 +399,10 @@ function ensureChart() {
     ...themeOptions(),
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     localization: { priceFormatter: (p) => fmtPrice(p) },
+  });
+  chart.applyOptions({
+    localization: { timeFormatter: fmtBarDate },
+    timeScale: { tickMarkFormatter: tickLabel },
   });
 
   candleSeries = chart.addCandlestickSeries({
