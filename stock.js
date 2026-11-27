@@ -18,6 +18,7 @@ const TIMEFRAMES = {
   "6M": { points: 180, stepDays: 1,  vol: 0.015 },
   "1Y": { points: 365, stepDays: 1,  vol: 0.015 },
   "5Y": { points: 60,  stepDays: 30, vol: 0.06 },
+  "All": { points: 240, stepDays: 30, vol: 0.08 },
 };
 
 const IST_OFFSET = 19800; // IST is 5h30m ahead of UTC (in seconds)

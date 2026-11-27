@@ -19,6 +19,7 @@ const RANGES = {
   "6M": { days: 183,  interval: "1d",  ttl: 30 * 60 * 1000 },
   "1Y": { days: 365,  interval: "1d",  ttl: 30 * 60 * 1000 },
   "5Y": { days: 1826, interval: "1wk", ttl: 60 * 60 * 1000 },
+  "All": { days: 12000, interval: "1mo", ttl: 6 * 60 * 60 * 1000 }, // everything since the stock was listed
 };
 
 const detailsCache = new Map();
