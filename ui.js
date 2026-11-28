@@ -2,9 +2,11 @@
   const css = document.createElement("style");
   css.textContent = `
   .ticker:hover #tickerTrack{animation-play-state:paused}
-  .card.fs-on{background:var(--bg,#0b1020);padding:16px;overflow:auto}
-  .card.fs-on #priceChart,.card.fs-on .tv-box{height:calc(100vh - 150px)!important;min-height:300px}
-  .card.fs-on .chart-wrap{height:auto}
+  .card.fs-on{background:var(--bg,#0b1020);padding:0!important;margin:0;border:0;border-radius:0;overflow:hidden}
+  .card.fs-on > *:not(.chart-wrap):not(.tv-box):not(.fs-exit):not(:has(.chart-wrap)):not(:has(.tv-box)){display:none!important}
+  .card.fs-on .chart-wrap{height:100vh!important}
+  .card.fs-on .tv-box{height:100vh!important}
+  .fs-exit{position:fixed!important;top:10px;right:14px;z-index:10001;background:rgba(19,28,46,.85)!important;backdrop-filter:blur(4px)}
   .card.fs-fake{position:fixed;inset:0;z-index:9998;border-radius:0}`;
   document.head.appendChild(css);
 
@@ -19,7 +21,12 @@
   function setFs(card, on) {
     card.classList.toggle("fs-on", on);
     const b = document.getElementById("fsBtn");
-    if (b) b.textContent = on ? "✕ Exit full screen" : "⛶ Full screen";
+    if (b) {
+      b.textContent = on ? "✕ Exit full screen" : "⛶ Full screen";
+      b.classList.toggle("fs-exit", on);
+      if (on) card.appendChild(b); // the other buttons are hidden, so the exit button floats over the chart
+      else addBtn(); // put it back with the chart buttons
+    }
     resizeChart();
   }
   function toggle() {
@@ -50,7 +57,7 @@
     const row = document.getElementById("chartModes") || document.getElementById("tfButtons");
     if (!row) return;
     const old = document.getElementById("fsBtn");
-    if (old) { if (old.parentNode !== row) row.appendChild(old); return; }
+    if (old) { if (!old.classList.contains("fs-exit") && old.parentNode !== row) row.appendChild(old); return; }
     const b = document.createElement("button");
     b.id = "fsBtn"; b.type = "button"; b.className = "tf-btn"; b.textContent = "⛶ Full screen";
     b.addEventListener("click", toggle);
